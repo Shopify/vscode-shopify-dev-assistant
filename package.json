@@ -1,5 +1,6 @@
 {
   "name": "shopify-dev-assistant",
+  "publisher": "shopify",
   "displayName": "Shopify Dev Assistant",
   "description": "A AI assistant for developers building on the Shopify platform.",
   "version": "0.0.1",

@@ -46,8 +46,9 @@ export function activate(context: vscode.ExtensionContext) {
   const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, _context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IShopifyChatResult> => {
     let fragments: string[] = [];
     const streamId = uuidv4();
+    let currentEventType = '';
+    let currentData = '';
 
-    // Replace EventSource with axios SSE implementation
     const response = await axios({
       method: 'post',
       url: 'https://shopify.dev/llm/gql_operations',
@@ -69,20 +70,38 @@ export function activate(context: vscode.ExtensionContext) {
     // Set up stream handling
     response.data.on('data', (chunk: Buffer) => {
       const lines = chunk.toString().split('\n');
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6); // Remove 'data: ' prefix
-          try {
-            const token: StreamToken = JSON.parse(data);
-            stream.markdown(token.token);
-            fragments.push(token.token);
-            console.log('received', token.token);
 
-            if (token.complete) {
-              response.data.destroy(); // Close the stream
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          currentEventType = line.slice(7);
+        } else if (line.startsWith('data: ')) {
+          currentData = line.slice(6);
+
+          // Process the event based on its type
+          try {
+            switch (currentEventType) {
+              case 'token':
+                stream.markdown(currentData);
+                fragments.push(currentData);
+                break;
+
+              case 'start':
+                // Handle start event if needed
+                console.log('Stream started, thread ID:', currentData);
+                break;
+
+              case 'error':
+                console.error('Stream error:', currentData);
+                response.data.destroy();
+                break;
+
+              case 'openai_error':
+                console.error('OpenAI error:', currentData);
+                response.data.destroy();
+                break;
             }
           } catch (error) {
-            console.error('Error parsing SSE data:', error);
+            console.error('Error processing SSE data:', error);
           }
         }
       }
