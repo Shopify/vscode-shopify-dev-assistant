@@ -64,6 +64,11 @@ export function activate(context: vscode.ExtensionContext) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
 
+    // Register cleanup when the token is cancelled
+    token.onCancellationRequested(() => {
+      reader.cancel();
+    });
+
     try {
       let result;
       while ((result = await reader.read()) && !result.done) {
@@ -84,13 +89,11 @@ export function activate(context: vscode.ExtensionContext) {
                   break;
 
                 case 'complete':
-                  reader.cancel();
                   break;
 
                 case 'error':
                 case 'openai_error':
                   console.error(`${currentEventType}:`, currentData);
-                  reader.cancel();
                   throw new Error(currentData);
               }
             } catch (error) {
@@ -102,14 +105,10 @@ export function activate(context: vscode.ExtensionContext) {
       }
     } catch (error) {
       console.error('SSE Error:', error);
-      reader.cancel();
       throw error;
-    }
-
-    // Register cleanup when the token is cancelled
-    token.onCancellationRequested(() => {
+    } finally {
       reader.cancel();
-    });
+    }
 
     stream.button({
       command: OPEN_IN_GRAPHIQL_COMMAND_ID,
@@ -117,7 +116,7 @@ export function activate(context: vscode.ExtensionContext) {
       arguments: [{ codeBlocks: extractCodeBlocks(fragments) }]
     });
 
-    return { metadata: {command: ''}};
+    return { metadata: { command: '' } };
   };
 
   // Create the chat participant with the new API
