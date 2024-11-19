@@ -19,13 +19,7 @@
           "fullName": "Shopify",
           "name": "shopify",
           "description": "I'm here to assist you with your app! What can I help you with today?",
-          "isSticky": true,
-          "commands": [
-            {
-              "name": "graphql",
-              "description": "Get help with generating a query or mutation for the Shopify Admin GraphQL API."
-            }
-          ]
+          "isSticky": true
         }
       ],
       "commands": [
@@ -61,7 +55,6 @@
     "@vscode/test-electron": "^2.4.1"
   },
   "dependencies": {
-    "axios": "^1.6.7",
     "uuid": "11.0.3"
   }
 }

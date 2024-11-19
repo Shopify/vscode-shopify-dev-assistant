@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
 const OPEN_IN_GRAPHIQL_COMMAND_ID = 'shopify.open-in-graphiql';
@@ -10,13 +9,6 @@ interface IShopifyChatResult extends vscode.ChatResult {
     command: string;
     codeBlocks?: string[];
   }
-}
-
-interface StreamToken {
-  index: number;
-  token: string;
-  fail?: boolean;
-  complete?: boolean;
 }
 
 function fromCamelToSnake(key: string): string {
@@ -49,98 +41,88 @@ export function activate(context: vscode.ExtensionContext) {
     let currentEventType = '';
     let currentData = '';
 
-    const response = await axios({
-      method: 'post',
-      url: 'https://shopify.dev/llm/gql_operations',
-      responseType: 'stream',
+    const response = await fetch('https://shopify.dev/llm/gql_operations', {
+      method: 'POST',
       headers: {
         'Accept': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
         'Content-Type': 'application/json',
       },
-      data: objectKeysToSnakeCase({
+      body: JSON.stringify(objectKeysToSnakeCase({
         streamId,
         gqlOperation: {
           userPrompt: request.prompt,
         },
-      }),
+      })),
     });
 
-    // Set up stream handling
-    response.data.on('data', (chunk: Buffer) => {
-      const lines = chunk.toString().split('\n');
+    if (!response.ok || !response.body) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
 
-      for (const line of lines) {
-        if (line.startsWith('event: ')) {
-          currentEventType = line.slice(7);
-        } else if (line.startsWith('data: ')) {
-          currentData = line.slice(6);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
 
-          // Process the event based on its type
-          try {
-            switch (currentEventType) {
-              case 'token':
-                stream.markdown(currentData);
-                fragments.push(currentData);
-                break;
+    try {
+      let result;
+      while ((result = await reader.read()) && !result.done) {
+        const chunk = decoder.decode(result.value);
+        const lines = chunk.split('\n');
 
-              case 'start':
-                // Handle start event if needed
-                console.log('Stream started, thread ID:', currentData);
-                break;
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            currentEventType = line.slice(7);
+          } else if (line.startsWith('data: ')) {
+            currentData = line.slice(6);
 
-              case 'error':
-                console.error('Stream error:', currentData);
-                response.data.destroy();
-                break;
+            try {
+              switch (currentEventType) {
+                case 'token':
+                  stream.markdown(currentData);
+                  fragments.push(currentData);
+                  break;
 
-              case 'openai_error':
-                console.error('OpenAI error:', currentData);
-                response.data.destroy();
-                break;
+                case 'complete':
+                  reader.cancel();
+                  break;
+
+                case 'error':
+                case 'openai_error':
+                  console.error(`${currentEventType}:`, currentData);
+                  reader.cancel();
+                  throw new Error(currentData);
+              }
+            } catch (error) {
+              console.error('Error processing SSE data:', error);
+              throw error;
             }
-          } catch (error) {
-            console.error('Error processing SSE data:', error);
           }
         }
       }
-    });
-
-    // Handle errors
-    response.data.on('error', (error: Error) => {
+    } catch (error) {
       console.error('SSE Error:', error);
-      response.data.destroy();
-    });
+      reader.cancel();
+      throw error;
+    }
 
     // Register cleanup when the token is cancelled
     token.onCancellationRequested(() => {
-      response.data.destroy();
+      reader.cancel();
     });
 
-    await queryLlmGqlOperations(request.prompt, stream, fragments);
+    stream.button({
+      command: OPEN_IN_GRAPHIQL_COMMAND_ID,
+      title: vscode.l10n.t('Open in GraphiQL'),
+      arguments: [{ codeBlocks: extractCodeBlocks(fragments) }]
+    });
 
-    if (request.command === 'graphql') {
-      return { metadata: {command: 'graphql'}};
-    } else {
-      return { metadata: {command: ''}};
-    }
+    return { metadata: {command: ''}};
   };
 
   // Create the chat participant with the new API
   const agent = vscode.chat.createChatParticipant(SHOPIFY_PARTICIPANT_ID, handler);
   agent.iconPath = vscode.Uri.joinPath(context.extensionUri, 'shopify.svg');
-
-  // Update followup provider to use the new API
-  agent.followupProvider = {
-    provideFollowups(result: IShopifyChatResult, context: vscode.ChatContext, token: vscode.CancellationToken) {
-      return [{
-        prompt: 'fix the error',
-        label: vscode.l10n.t('Fix the error'),
-        command: 'fix'
-      } satisfies vscode.ChatFollowup];
-    }
-  };
 
   context.subscriptions.push(
     agent,
@@ -161,7 +143,7 @@ export function activate(context: vscode.ExtensionContext) {
       }, timeout);
 
       const checkUrlAndOpen = async () => {
-        await axios.get(url);
+        await fetch(url);
         clearTimeout(timeoutId);
         if (intervalId) {
           clearInterval(intervalId);
@@ -213,23 +195,4 @@ function extractCodeBlocks(lines: string[]): string[] {
   }
 
   return codeBlocks;
-}
-
-async function queryLlmGqlOperations(prompt: string, stream: vscode.ChatResponseStream, fragments: string[]): Promise<void> {
-  await axios({
-    method: 'post',
-    url: 'https://shopify.dev/llm/gql_operations',
-    data: {
-      gql_operation: {
-        user_prompt: prompt,
-      },
-      stream_id: '1234',
-    },
-  });
-
-  stream.button({
-    command: OPEN_IN_GRAPHIQL_COMMAND_ID,
-    title: vscode.l10n.t('Open in GraphiQL'),
-    arguments: [{ codeBlocks: extractCodeBlocks(fragments) }]
-  });
 }
