@@ -4,6 +4,7 @@
   "displayName": "Shopify Dev Assistant",
   "description": "A AI assistant for developers building on the Shopify platform.",
   "version": "0.0.1",
+  "repository": "https://github.com/Shopify/vscode-dev-assistant",
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -53,8 +54,5 @@
     "webpack-cli": "^5.1.4",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1"
-  },
-  "dependencies": {
-    "uuid": "11.0.3"
   }
 }

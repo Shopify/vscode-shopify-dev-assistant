@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import { v4 as uuidv4 } from 'uuid';
 
 const OPEN_IN_GRAPHIQL_COMMAND_ID = 'shopify.open-in-graphiql';
 const SHOPIFY_PARTICIPANT_ID = 'shopify';
@@ -37,7 +36,7 @@ function objectKeysToSnakeCase<T>(input: any): T {
 export function activate(context: vscode.ExtensionContext) {
   const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, _context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IShopifyChatResult> => {
     let fragments: string[] = [];
-    const streamId = uuidv4();
+    const streamId = crypto.randomUUID();
     let currentEventType = '';
     let currentData = '';
 

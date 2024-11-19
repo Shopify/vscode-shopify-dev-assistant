@@ -1,71 +1,43 @@
-# shopify-dev-assistant README
+# Shopify Dev Assistant
 
-This is the README for your extension "shopify-dev-assistant". After writing up a brief description, we recommend including the following sections.
+A VS Code extension that provides AI-powered assistance for developers building on the Shopify platform. This extension integrates directly with VS Code's chat interface to help you with Shopify development tasks and includes convenient features like direct GraphiQL integration.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+### 🤖 AI Assistant
+- Access Shopify-specific AI assistance directly within VS Code
+- Get help with Shopify API queries, app development, and platform-specific questions
+- Context-aware responses tailored to Shopify development
 
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+### 🔍 GraphiQL Integration
+- Execute GraphQL queries directly from chat responses
+- Automatically launches GraphiQL with your query when needed
+- Seamlessly integrates with your local development environment
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+- VS Code 1.95.0 or higher
+- Node.js and npm/pnpm installed
+- A running Shopify app development environment
 
-## Extension Settings
+## Installation
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+1. Install the extension from the VS Code marketplace
+2. Ensure you have the Shopify CLI installed and configured
+3. Start using the assistant by opening VS Code's chat panel and selecting "Shopify"
 
-For example:
+## Usage
 
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+1. Open VS Code's chat panel (Ctrl/Cmd + Shift + P > "Open Chat")
+2. Select "Shopify" from the chat participants
+3. Ask your question about Shopify development
+4. For GraphQL queries, click the "Open in GraphiQL" button to test them in GraphiQL
 
 ## Known Issues
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+- GraphiQL integration requires a running Shopify app development server
+- The extension will attempt to start the development server if it's not running
 
-## Release Notes
+## License
 
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+[MIT License](LICENSE)
