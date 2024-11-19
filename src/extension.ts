@@ -40,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
     let currentEventType = '';
     let currentData = '';
 
-    const response = await fetch('https://shopify-dev.myshopify.io/llm/gql_operations', {
+    const response = await fetch('https://shopify.dev/llm/gql_operations', {
       method: 'POST',
       headers: {
         'Accept': 'text/event-stream',
@@ -121,7 +121,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Create the chat participant with the new API
   const agent = vscode.chat.createChatParticipant(SHOPIFY_PARTICIPANT_ID, handler);
-  agent.iconPath = vscode.Uri.joinPath(context.extensionUri, 'shopify.svg');
+  agent.iconPath = vscode.Uri.joinPath(context.extensionUri, 'icon.png');
 
   context.subscriptions.push(
     agent,
