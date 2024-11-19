@@ -156,7 +156,7 @@ export function activate(context: vscode.ExtensionContext) {
         await checkUrlAndOpen();
       } catch (error) {
         const terminal = vscode.window.createTerminal('Shopify Dev');
-        terminal.sendText("dev cd cli && pnpm shopify app dev --path ~/Projects/vscode-agent-test");
+        terminal.sendText("npm run shopify app dev");
         terminal.show();
 
         intervalId = setInterval(async () => {
