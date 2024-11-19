@@ -41,7 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
     let currentEventType = '';
     let currentData = '';
 
-    const response = await fetch('https://shopify.dev/llm/gql_operations', {
+    const response = await fetch('https://shopify-dev.myshopify.io/llm/gql_operations', {
       method: 'POST',
       headers: {
         'Accept': 'text/event-stream',
@@ -61,7 +61,7 @@ export function activate(context: vscode.ExtensionContext) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const reader = response.body.getReader();
+    const reader = response.body!.getReader();
     const decoder = new TextDecoder();
 
     // Register cleanup when the token is cancelled
@@ -71,6 +71,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     try {
       let result;
+
       while ((result = await reader.read()) && !result.done) {
         const chunk = decoder.decode(result.value);
         const lines = chunk.split('\n');
@@ -79,7 +80,7 @@ export function activate(context: vscode.ExtensionContext) {
           if (line.startsWith('event: ')) {
             currentEventType = line.slice(7);
           } else if (line.startsWith('data: ')) {
-            currentData = line.slice(6);
+            currentData = JSON.parse(line.slice(6));
 
             try {
               switch (currentEventType) {
@@ -172,24 +173,29 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {}
 
-function extractCodeBlocks(lines: string[]): string[] {
+function extractCodeBlocks(fragments: string[]): string[] {
+  // Concatenate all fragments into a single string
+  const fullText = fragments.join('');
   let inCodeBlock = false;
   let currentBlock = '';
   const codeBlocks: string[] = [];
 
-  for (const line of lines) {
+  // Split the full text into lines for processing
+  const textLines = fullText.split('\n');
+
+  for (const line of textLines) {
     if (line.trim().startsWith('```')) {
       if (inCodeBlock) {
         // end of a code block
         inCodeBlock = false;
-        codeBlocks.push(currentBlock);
+        codeBlocks.push(currentBlock.trim());
         currentBlock = '';
       } else {
         // start of a code block
         inCodeBlock = true;
       }
     } else if (inCodeBlock) {
-      currentBlock += line;
+      currentBlock += line + '\n';
     }
   }
 
