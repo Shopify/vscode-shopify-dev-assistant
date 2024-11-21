@@ -5,8 +5,7 @@ const SHOPIFY_PARTICIPANT_ID = 'shopify';
 
 interface IShopifyChatResult extends vscode.ChatResult {
   metadata: {
-    command: string;
-    codeBlocks?: string[];
+    threadId?: string;
   }
 }
 
@@ -82,7 +81,10 @@ export function activate(extensionContext: vscode.ExtensionContext) {
     if (context.history.length === 0) {
       currentThreadId = undefined;
     } else {
-      currentThreadId ??= extensionContext.workspaceState.get('shopify.lastThreadId');
+      const lastResponse = context.history[context.history.length - 1];
+      if ('result' in lastResponse && lastResponse.result.metadata?.threadId) {
+        currentThreadId = lastResponse.result.metadata.threadId;
+      }
     }
 
     let fullText: string = '';
@@ -137,7 +139,6 @@ export function activate(extensionContext: vscode.ExtensionContext) {
               switch (currentEventType) {
                 case 'start':
                   currentThreadId = currentData;
-                  extensionContext.workspaceState.update('shopify.lastThreadId', currentThreadId);
                   break;
                 case 'token':
                   stream.markdown(currentData);
@@ -180,7 +181,7 @@ export function activate(extensionContext: vscode.ExtensionContext) {
       arguments: [{ codeBlocks: extractCodeBlocks(fullText) }]
     });
 
-    return { metadata: { command: '' } };
+    return { metadata: { threadId: currentThreadId } };
   };
 
   // Create the chat participant with the new API
