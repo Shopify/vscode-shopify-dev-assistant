@@ -46,15 +46,46 @@ function objectKeysToSnakeCase<T>(input: any): T {
   return recurse(fromCamelToSnake, input) as T;
 }
 
+function extractMarkdownUrls(fullText: string): Set<string> {
+  const urls = new Set<string>();
+
+  let currentIndex = 0;
+  while (true) {
+    // Find opening of markdown link
+    const linkStart = fullText.indexOf('](', currentIndex);
+    if (linkStart === -1) {
+      break;
+    }
+
+    // Find closing parenthesis
+    const linkEnd = fullText.indexOf(')', linkStart + 2);
+    if (linkEnd === -1) {
+      break;
+    }
+
+    // Extract the URL
+    const url = fullText.substring(linkStart + 2, linkEnd);
+    if (url.startsWith('http')) {
+      urls.add(url);
+    }
+
+    currentIndex = linkEnd + 1;
+  }
+
+  return urls;
+}
+
 export function activate(extensionContext: vscode.ExtensionContext) {
   let currentThreadId: string | undefined;
 
   const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IShopifyChatResult> => {
     if (context.history.length === 0) {
       currentThreadId = undefined;
+    } else {
+      currentThreadId ??= extensionContext.workspaceState.get('shopify.lastThreadId');
     }
 
-    let fragments: string[] = [];
+    let fullText: string = '';
     const streamId = crypto.randomUUID();
     let currentEventType = '';
     let currentData = '';
@@ -90,6 +121,7 @@ export function activate(extensionContext: vscode.ExtensionContext) {
 
     try {
       let result;
+      let processedUrls = new Set<string>();
 
       while ((result = await reader.read()) && !result.done) {
         const chunk = decoder.decode(result.value);
@@ -105,10 +137,19 @@ export function activate(extensionContext: vscode.ExtensionContext) {
               switch (currentEventType) {
                 case 'start':
                   currentThreadId = currentData;
+                  extensionContext.workspaceState.update('shopify.lastThreadId', currentThreadId);
                   break;
                 case 'token':
                   stream.markdown(currentData);
-                  fragments.push(currentData);
+                  fullText += currentData;
+
+                  const currentUrls = extractMarkdownUrls(fullText);
+                  for (const url of currentUrls) {
+                    if (!processedUrls.has(url)) {
+                      stream.reference(vscode.Uri.parse(url));
+                      processedUrls.add(url);
+                    }
+                  }
                   break;
 
                 case 'complete':
@@ -136,7 +177,7 @@ export function activate(extensionContext: vscode.ExtensionContext) {
     stream.button({
       command: OPEN_IN_GRAPHIQL_COMMAND_ID,
       title: vscode.l10n.t('Open in GraphiQL'),
-      arguments: [{ codeBlocks: extractCodeBlocks(fragments) }]
+      arguments: [{ codeBlocks: extractCodeBlocks(fullText) }]
     });
 
     return { metadata: { command: '' } };
@@ -195,9 +236,7 @@ export function activate(extensionContext: vscode.ExtensionContext) {
 
 export function deactivate() {}
 
-function extractCodeBlocks(fragments: string[]): string[] {
-  // Concatenate all fragments into a single string
-  const fullText = fragments.join('');
+function extractCodeBlocks(fullText: string): string[] {
   let inCodeBlock = false;
   let currentBlock = '';
   const codeBlocks: string[] = [];

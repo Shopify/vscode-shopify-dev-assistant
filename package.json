@@ -21,7 +21,19 @@
           "fullName": "Shopify",
           "name": "shopify",
           "description": "I'm here to assist you with your app! What can I help you with today?",
-          "isSticky": true
+          "isSticky": true,
+          "disambiguation": [
+            {
+              "category": "shopify",
+              "description": "The user wants to do something with the Shopify developer platform.",
+              "examples": [
+                "How do I create a new app?",
+                "What are the latest changes in the Admin GraphQL API?",
+                "How do I add a product to a store?",
+                "How do I get the last 10 products from a store?"
+              ]
+            }
+          ]
         }
       ],
       "commands": [
