@@ -27,10 +27,10 @@
               "category": "shopify",
               "description": "The user wants to do something with the Shopify developer platform.",
               "examples": [
-                "How do I create a new app?",
-                "What are the latest changes in the Admin GraphQL API?",
-                "How do I add a product to a store?",
-                "How do I get the last 10 products from a store?"
+                "How do I create a new Shopify app?",
+                "What are the latest changes in the Shopify Admin GraphQL API?",
+                "How do I add a product to a Shopify store?",
+                "How do I get the last 10 products from a Shopify store?"
               ]
             }
           ]
