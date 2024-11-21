@@ -14,27 +14,46 @@ function fromCamelToSnake(key: string): string {
   return key.replace(/([A-Z])/g, '_$1').toLowerCase();
 }
 
-function recurse(keyConverter: (key: string) => string, input: any): any {
-  if (Array.isArray(input)) {
-    return input.map(item => recurse(keyConverter, item));
-  }
+function recurse(converter: (inputString: string) => string, input: any): any {
+  const recurseFn = recurse.bind(null, converter);
 
-  if (input !== null && typeof input === 'object') {
-    return Object.keys(input).reduce((acc, key) => {
-      acc[keyConverter(key)] = recurse(keyConverter, input[key]);
-      return acc;
-    }, {} as Record<string, any>);
+  if (isObject(input)) {
+    const outputObject: Record<string, any> = {};
+
+    Object.keys(input).forEach((key) => {
+      outputObject[converter(key)] = recurseFn(input[key]);
+    });
+
+    return outputObject;
+  } else if (isArray(input)) {
+    return input.map(recurseFn);
   }
 
   return input;
+}
+
+function isArray(input: any) {
+  return Array.isArray(input);
+}
+
+function isObject(input: any) {
+  return (
+    input === Object(input) && !isArray(input) && typeof input !== 'function'
+  );
 }
 
 function objectKeysToSnakeCase<T>(input: any): T {
   return recurse(fromCamelToSnake, input) as T;
 }
 
-export function activate(context: vscode.ExtensionContext) {
-  const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, _context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IShopifyChatResult> => {
+export function activate(extensionContext: vscode.ExtensionContext) {
+  let currentThreadId: string | undefined;
+
+  const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IShopifyChatResult> => {
+    if (context.history.length === 0) {
+      currentThreadId = undefined;
+    }
+
     let fragments: string[] = [];
     const streamId = crypto.randomUUID();
     let currentEventType = '';
@@ -50,6 +69,7 @@ export function activate(context: vscode.ExtensionContext) {
       },
       body: JSON.stringify(objectKeysToSnakeCase({
         streamId,
+        threadId: currentThreadId,
         gqlOperation: {
           userPrompt: request.prompt,
         },
@@ -83,6 +103,9 @@ export function activate(context: vscode.ExtensionContext) {
 
             try {
               switch (currentEventType) {
+                case 'start':
+                  currentThreadId = currentData;
+                  break;
                 case 'token':
                   stream.markdown(currentData);
                   fragments.push(currentData);
@@ -121,9 +144,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Create the chat participant with the new API
   const agent = vscode.chat.createChatParticipant(SHOPIFY_PARTICIPANT_ID, handler);
-  agent.iconPath = vscode.Uri.joinPath(context.extensionUri, 'icon.png');
+  agent.iconPath = vscode.Uri.joinPath(extensionContext.extensionUri, 'icon.png');
 
-  context.subscriptions.push(
+  extensionContext.subscriptions.push(
     agent,
     vscode.commands.registerCommand(OPEN_IN_GRAPHIQL_COMMAND_ID, async ({codeBlocks}) => {
       const url = `http://localhost:3457/graphiql?query=${encodeURIComponent(codeBlocks[0])}`;
