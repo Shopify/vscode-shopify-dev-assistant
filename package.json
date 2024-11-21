@@ -3,7 +3,7 @@
   "publisher": "shopify",
   "displayName": "Shopify Dev Assistant",
   "description": "A AI assistant for developers building on the Shopify platform.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "repository": "https://github.com/Shopify/vscode-dev-assistant",
   "engines": {
     "vscode": "^1.95.0"
