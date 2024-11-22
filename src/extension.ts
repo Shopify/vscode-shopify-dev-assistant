@@ -175,11 +175,15 @@ export function activate(extensionContext: vscode.ExtensionContext) {
       reader.cancel();
     }
 
-    stream.button({
-      command: OPEN_IN_GRAPHIQL_COMMAND_ID,
+    const codeBlocks = extractCodeBlocks(fullText);
+
+    if (codeBlocks.length > 0) {
+      stream.button({
+        command: OPEN_IN_GRAPHIQL_COMMAND_ID,
       title: vscode.l10n.t('Open in GraphiQL'),
-      arguments: [{ codeBlocks: extractCodeBlocks(fullText) }]
-    });
+        arguments: [{ codeBlocks }]
+      });
+    }
 
     return { metadata: { threadId: currentThreadId } };
   };
@@ -246,7 +250,7 @@ function extractCodeBlocks(fullText: string): string[] {
   const textLines = fullText.split('\n');
 
   for (const line of textLines) {
-    if (line.trim().startsWith('```')) {
+    if (line.trim().startsWith('```graphql')) {
       if (inCodeBlock) {
         // end of a code block
         inCodeBlock = false;
