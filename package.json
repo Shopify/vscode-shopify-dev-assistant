@@ -40,8 +40,21 @@
         {
           "command": "shopify.open-in-graphiql",
           "title": "Open in GraphiQL"
+        },
+        {
+          "command": "shopify.convert-to-graphql",
+          "title": "Convert to GraphQL"
         }
-      ]
+      ],
+      "menus": {
+        "editor/context": [
+          {
+            "command": "shopify.convert-to-graphql",
+            "when": "chatIsEnabled",
+            "group": "1_modification"
+          }
+        ]
+      }
     },
   "scripts": {
     "vscode:prepublish": "pnpm run package",

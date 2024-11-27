@@ -246,6 +246,28 @@ export function activate(extensionContext: vscode.ExtensionContext) {
           }
         }, interval);
       }
+    }),
+    vscode.commands.registerCommand('shopify.convert-to-graphql', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        return;
+      }
+
+      const selection = editor.selection;
+      const selectedText = editor.document.getText(selection);
+
+      if (!selectedText) {
+        vscode.window.showWarningMessage('Please select some text to convert to GraphQL');
+        return;
+      }
+
+      const prompt = `@shopify I want to convert the following code wrapped in triple backticks to GraphQL:
+
+\`\`\`
+${selectedText}
+\`\`\``;
+
+      await vscode.commands.executeCommand('workbench.action.chat.open', prompt);
     })
   );
 }
