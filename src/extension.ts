@@ -176,13 +176,24 @@ export function activate(extensionContext: vscode.ExtensionContext) {
     }
 
     const codeBlocks = extractCodeBlocks(fullText);
-
     if (codeBlocks.length > 0) {
-      stream.button({
-        command: OPEN_IN_GRAPHIQL_COMMAND_ID,
-      title: vscode.l10n.t('Open in GraphiQL'),
-        arguments: [{ codeBlocks }]
-      });
+      // Check if we're in a Shopify app by looking for shopify.app.toml
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+      if (workspaceFolder) {
+        try {
+          const shopifyTomlPath = vscode.Uri.joinPath(workspaceFolder.uri, 'shopify.app.toml');
+          await vscode.workspace.fs.stat(shopifyTomlPath); // Will throw if file doesn't exist
+
+          stream.button({
+            command: OPEN_IN_GRAPHIQL_COMMAND_ID,
+            title: vscode.l10n.t('Open in GraphiQL'),
+            arguments: [{ codeBlocks }]
+          });
+        } catch (error) {
+          // If shopify.app.toml doesn't exist, don't show the button
+          console.log('Not a Shopify app - missing shopify.app.toml');
+        }
+      }
     }
 
     return { metadata: { threadId: currentThreadId } };
@@ -250,16 +261,12 @@ function extractCodeBlocks(fullText: string): string[] {
   const textLines = fullText.split('\n');
 
   for (const line of textLines) {
-    if (line.trim().startsWith('```graphql')) {
-      if (inCodeBlock) {
-        // end of a code block
-        inCodeBlock = false;
-        codeBlocks.push(currentBlock.trim());
-        currentBlock = '';
-      } else {
-        // start of a code block
-        inCodeBlock = true;
-      }
+    if (line.trim() === '```graphql') {
+      inCodeBlock = true;
+    } else if (line.trim() === '```') {
+      inCodeBlock = false;
+      codeBlocks.push(currentBlock.trim());
+      currentBlock = '';
     } else if (inCodeBlock) {
       currentBlock += line + '\n';
     }
