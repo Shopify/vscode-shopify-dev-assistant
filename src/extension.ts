@@ -6,43 +6,8 @@ const SHOPIFY_PARTICIPANT_ID = 'shopify';
 interface IShopifyChatResult extends vscode.ChatResult {
   metadata: {
     threadId?: string;
+    operationId?: string;
   }
-}
-
-function fromCamelToSnake(key: string): string {
-  return key.replace(/([A-Z])/g, '_$1').toLowerCase();
-}
-
-function recurse(converter: (inputString: string) => string, input: any): any {
-  const recurseFn = recurse.bind(null, converter);
-
-  if (isObject(input)) {
-    const outputObject: Record<string, any> = {};
-
-    Object.keys(input).forEach((key) => {
-      outputObject[converter(key)] = recurseFn(input[key]);
-    });
-
-    return outputObject;
-  } else if (isArray(input)) {
-    return input.map(recurseFn);
-  }
-
-  return input;
-}
-
-function isArray(input: any) {
-  return Array.isArray(input);
-}
-
-function isObject(input: any) {
-  return (
-    input === Object(input) && !isArray(input) && typeof input !== 'function'
-  );
-}
-
-function objectKeysToSnakeCase<T>(input: any): T {
-  return recurse(fromCamelToSnake, input) as T;
 }
 
 function extractMarkdownUrls(fullText: string): Set<string> {
@@ -75,9 +40,11 @@ function extractMarkdownUrls(fullText: string): Set<string> {
 }
 
 export function activate(extensionContext: vscode.ExtensionContext) {
-  let currentThreadId: string | undefined;
 
   const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IShopifyChatResult> => {
+    let currentThreadId: string | undefined;
+    let currentOperationId: string | undefined;
+
     if (context.history.length === 0) {
       currentThreadId = undefined;
     } else {
@@ -90,7 +57,7 @@ export function activate(extensionContext: vscode.ExtensionContext) {
     let fullText: string = '';
     const streamId = crypto.randomUUID();
     let currentEventType = '';
-    let currentData = '';
+    let currentData: any;
 
     const response = await fetch('https://shopify.dev/llm/gql_operations', {
       method: 'POST',
@@ -100,13 +67,13 @@ export function activate(extensionContext: vscode.ExtensionContext) {
         'Connection': 'keep-alive',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(objectKeysToSnakeCase({
-        streamId,
-        threadId: currentThreadId,
-        gqlOperation: {
-          userPrompt: request.prompt,
+      body: JSON.stringify({
+        stream_id: streamId,
+        thread_id: currentThreadId,
+        gql_operation: {
+          user_prompt: request.prompt,
         },
-      })),
+      }),
     });
 
     if (!response.ok || !response.body) {
@@ -154,6 +121,7 @@ export function activate(extensionContext: vscode.ExtensionContext) {
                   break;
 
                 case 'complete':
+                  currentOperationId = currentData.gql_operation.id;
                   break;
 
                 case 'error':
@@ -196,12 +164,42 @@ export function activate(extensionContext: vscode.ExtensionContext) {
       }
     }
 
-    return { metadata: { threadId: currentThreadId } };
+    return {
+      metadata: {
+        threadId: currentThreadId,
+        operationId: currentOperationId
+      }
+    };
   };
 
   // Create the chat participant with the new API
   const agent = vscode.chat.createChatParticipant(SHOPIFY_PARTICIPANT_ID, handler);
   agent.iconPath = vscode.Uri.joinPath(extensionContext.extensionUri, 'icon.png');
+
+  extensionContext.subscriptions.push(agent.onDidReceiveFeedback((feedback: vscode.ChatResultFeedback) => {
+    const operationId = feedback.result.metadata?.operationId;
+
+    if (operationId) {
+      fetch(`https://shopify.dev/llm/gql_operations/${operationId}/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          gql_operation: {
+            user_feedback: {
+              helpfulness: feedback.kind === vscode.ChatResultFeedbackKind.Helpful,
+              // we should be able to use feedback.unhelpfulReason, but it seems to be undefined (bug?)
+              category: "other",
+              user_feedback: "Submitted via VSCode extension"
+            }
+          }
+        })
+      }).catch(error => {
+        console.error('Failed to send feedback:', error);
+      });
+    }
+  }));
 
   extensionContext.subscriptions.push(
     agent,
