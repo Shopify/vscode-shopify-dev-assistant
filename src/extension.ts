@@ -202,7 +202,19 @@ export function activate(extensionContext: vscode.ExtensionContext) {
   extensionContext.subscriptions.push(
     agent,
     vscode.commands.registerCommand(OPEN_IN_GRAPHIQL_COMMAND_ID, async ({codeBlocks}) => {
-      const url = `http://localhost:3457/graphiql?query=${encodeURIComponent(codeBlocks[0])}`;
+      // Function to check and open a specific URL
+      const checkAndOpenUrl = async (query: string) => {
+        const encodedQuery = encodeURIComponent(query).replace(/%20/g, '+');
+        const url = `http://localhost:3457/graphiql?query=${encodedQuery}`;
+        try {
+          await fetch(url);
+          vscode.env.openExternal(vscode.Uri.parse(url));
+          return true;
+        } catch (error) {
+          return false;
+        }
+      };
+
       const timeout = 30 * 1000;
       const interval = 1000;
       let intervalId: ReturnType<typeof setTimeout> | undefined;
@@ -217,30 +229,45 @@ export function activate(extensionContext: vscode.ExtensionContext) {
         vscode.window.showErrorMessage("Couldn't reach GraphiQL.");
       }, timeout);
 
-      const checkUrlAndOpen = async () => {
-        await fetch(url);
-        clearTimeout(timeoutId);
-        if (intervalId) {
-          clearInterval(intervalId);
+      // Try to open all URLs first
+      let allSucceeded = true;
+      for (const block of codeBlocks) {
+        if (!(await checkAndOpenUrl(block))) {
+          allSucceeded = false;
+          break;
         }
-        message.dispose();
-        vscode.env.openExternal(vscode.Uri.parse(url));
-      };
+      }
 
-      try {
-        await checkUrlAndOpen();
-      } catch (error) {
+      // If any URL failed, start the dev server and retry
+      if (!allSucceeded) {
         const terminal = vscode.window.createTerminal('Shopify Dev');
         terminal.sendText("npm run shopify app dev");
         terminal.show();
 
         intervalId = setInterval(async () => {
           try {
-            await checkUrlAndOpen();
+            let allOpened = true;
+            for (const block of codeBlocks) {
+              if (!(await checkAndOpenUrl(block))) {
+                allOpened = false;
+                break;
+              }
+            }
+            if (allOpened) {
+              clearTimeout(timeoutId);
+              if (intervalId) {
+                clearInterval(intervalId);
+              }
+              message.dispose();
+            }
           } catch (error) {
             // Ignore errors
           }
         }, interval);
+      } else {
+        // All URLs opened successfully
+        clearTimeout(timeoutId);
+        message.dispose();
       }
     }),
     vscode.commands.registerCommand('shopify.convert-to-graphql', async () => {
