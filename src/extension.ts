@@ -283,7 +283,7 @@ function extractCodeBlocks(fullText: string): string[] {
   for (const line of textLines) {
     if (line.trim() === '```graphql') {
       inCodeBlock = true;
-    } else if (line.trim() === '```') {
+    } else if (line.trim() === '```' && currentBlock.trim().length > 0) {
       inCodeBlock = false;
       codeBlocks.push(currentBlock.trim());
       currentBlock = '';
