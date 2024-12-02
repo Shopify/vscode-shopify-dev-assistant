@@ -10,7 +10,7 @@ interface IShopifyChatResult extends vscode.ChatResult {
   }
 }
 
-function extractMarkdownUrls(fullText: string): Set<string> {
+export function extractMarkdownUrls(fullText: string): Set<string> {
   const urls = new Set<string>();
 
   let currentIndex = 0;
@@ -39,9 +39,7 @@ function extractMarkdownUrls(fullText: string): Set<string> {
   return urls;
 }
 
-export function activate(extensionContext: vscode.ExtensionContext) {
-
-  const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IShopifyChatResult> => {
+export const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IShopifyChatResult> => {
     let currentThreadId: string | undefined;
     let currentOperationId: string | undefined;
 
@@ -170,9 +168,9 @@ export function activate(extensionContext: vscode.ExtensionContext) {
         operationId: currentOperationId
       }
     };
-  };
+};
 
-  // Create the chat participant with the new API
+export function activate(extensionContext: vscode.ExtensionContext) {
   const agent = vscode.chat.createChatParticipant(SHOPIFY_PARTICIPANT_ID, handler);
   agent.iconPath = vscode.Uri.joinPath(extensionContext.extensionUri, 'icon.png');
 
@@ -272,7 +270,7 @@ ${selectedText}
 
 export function deactivate() {}
 
-function extractCodeBlocks(fullText: string): string[] {
+export function extractCodeBlocks(fullText: string): string[] {
   let inCodeBlock = false;
   let currentBlock = '';
   const codeBlocks: string[] = [];
