@@ -1,6 +1,7 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import { extractMarkdownUrls, extractCodeBlocks, handler } from '../extension';
+import * as sinon from 'sinon';
 
 suite('Extension Test Suite', () => {
     test('extractMarkdownUrls extracts correct URLs', () => {
@@ -95,5 +96,35 @@ suite('Chat Integration Tests', () => {
         assert.ok(result?.metadata?.operationId);
         assert.strictEqual(result.metadata.threadId, 'test-thread-id');
         assert.strictEqual(result.metadata.operationId, 'test-op-id');
+    });
+
+    test('OPEN_IN_GRAPHIQL_COMMAND_ID opens the correct URLs', async () => {
+        // Mock the codeBlocks that would be passed to the command
+        const codeBlocks = ['query { test }', 'mutation { update }'];
+
+        // Mock the fetch API to simulate successful responses
+        global.fetch = (async (input: Request | URL, init?: RequestInit) => {
+            return {
+                ok: true,
+                // Additional properties if needed
+            } as Response;
+        }) as typeof fetch;
+
+        // Stub vscode.env.openExternal to monitor its calls
+        const openExternalStub = sinon.stub(vscode.env, 'openExternal').resolves(true);
+
+        // Execute the command with the mock codeBlocks
+        await vscode.commands.executeCommand('shopify.open-in-graphiql', { codeBlocks });
+
+        // Verify that openExternal was called with the correct URLs
+        assert.strictEqual(openExternalStub.callCount, codeBlocks.length);
+        for (let i = 0; i < codeBlocks.length; i++) {
+            const encodedQuery = encodeURIComponent(codeBlocks[i]).replace(/%20/g, '+');
+            const expectedUrl = `http://localhost:3457/graphiql?query=${encodedQuery}`;
+            assert.ok(openExternalStub.getCall(i).calledWith(vscode.Uri.parse(expectedUrl)));
+        }
+
+        // Restore the stub after the test
+        openExternalStub.restore();
     });
 });
