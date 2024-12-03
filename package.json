@@ -87,6 +87,7 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "eventsource-parser": "^3.0.0",
     "marked": "^15.0.3"
   }
 }

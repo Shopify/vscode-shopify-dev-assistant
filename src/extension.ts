@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { marked, TokensList } from 'marked';
+import { createParser } from 'eventsource-parser';
 
 const OPEN_IN_GRAPHIQL_COMMAND_ID = 'shopify.open-in-graphiql';
 const SHOPIFY_PARTICIPANT_ID = 'shopify';
@@ -96,8 +97,6 @@ export const handler: vscode.ChatRequestHandler = async (request: vscode.ChatReq
 
     let fullText: string = '';
     const streamId = crypto.randomUUID();
-    let currentEventType = '';
-    let currentData: any;
 
     const response = await fetch('https://shopify.dev/llm/gql_operations', {
       method: 'POST',
@@ -131,49 +130,45 @@ export const handler: vscode.ChatRequestHandler = async (request: vscode.ChatReq
       let result;
       let processedUrls = new Set<string>();
 
+      const parser = createParser({
+        onEvent: (event) => {
+          const eventType = event.event;
+          const data = JSON.parse(event.data);
+
+          switch (eventType) {
+            case 'start':
+              currentThreadId = data;
+              break;
+            case 'token':
+              stream.markdown(data);
+              fullText += data;
+
+              const currentUrls = extractMarkdownUrls(fullText);
+              for (const url of currentUrls) {
+                if (!processedUrls.has(url)) {
+                  stream.reference(vscode.Uri.parse(url));
+                  processedUrls.add(url);
+                }
+              }
+              break;
+            case 'complete':
+              currentOperationId = data.gql_operation.id;
+              break;
+            case 'error':
+            case 'openai_error':
+              console.error(`${eventType}:`, data);
+              throw new Error(data);
+          }
+        },
+        onError: (error) => {
+          console.error('Error processing SSE data:', error);
+          throw error;
+        }
+      });
+
       while ((result = await reader.read()) && !result.done) {
         const chunk = decoder.decode(result.value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            currentEventType = line.slice(7);
-          } else if (line.startsWith('data: ')) {
-            currentData = JSON.parse(line.slice(6));
-
-            try {
-              switch (currentEventType) {
-                case 'start':
-                  currentThreadId = currentData;
-                  break;
-                case 'token':
-                  stream.markdown(currentData);
-                  fullText += currentData;
-
-                  const currentUrls = extractMarkdownUrls(fullText);
-                  for (const url of currentUrls) {
-                    if (!processedUrls.has(url)) {
-                      stream.reference(vscode.Uri.parse(url));
-                      processedUrls.add(url);
-                    }
-                  }
-                  break;
-
-                case 'complete':
-                  currentOperationId = currentData.gql_operation.id;
-                  break;
-
-                case 'error':
-                case 'openai_error':
-                  console.error(`${currentEventType}:`, currentData);
-                  throw new Error(currentData);
-              }
-            } catch (error) {
-              console.error('Error processing SSE data:', error);
-              throw error;
-            }
-          }
-        }
+        parser.feed(chunk);
       }
     } catch (error) {
       console.error('SSE Error:', error);
