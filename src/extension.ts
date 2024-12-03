@@ -87,110 +87,109 @@ export const handler: vscode.ChatRequestHandler = async (request: vscode.ChatReq
     let currentOperationId: string | undefined;
 
     if (context.history.length === 0) {
-      currentThreadId = undefined;
+        currentThreadId = undefined;
     } else {
-      const lastResponse = context.history[context.history.length - 1];
-      if ('result' in lastResponse && lastResponse.result.metadata?.threadId) {
-        currentThreadId = lastResponse.result.metadata.threadId;
-      }
+        const lastResponse = context.history[context.history.length - 1];
+        if ('result' in lastResponse && lastResponse.result.metadata?.threadId) {
+            currentThreadId = lastResponse.result.metadata.threadId;
+        }
     }
 
-    let fullText: string = '';
+    let fullText = '';
     const streamId = crypto.randomUUID();
 
     const response = await fetch('https://shopify.dev/llm/gql_operations', {
-      method: 'POST',
-      headers: {
-        'Accept': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        stream_id: streamId,
-        thread_id: currentThreadId,
-        gql_operation: {
-          user_prompt: request.prompt,
+        method: 'POST',
+        headers: {
+            'Accept': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Content-Type': 'application/json',
         },
-      }),
+        body: JSON.stringify({
+            stream_id: streamId,
+            thread_id: currentThreadId,
+            gql_operation: {
+                user_prompt: request.prompt,
+            },
+        }),
     });
 
     if (!response.ok || !response.body) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const reader = response.body!.getReader();
+    const reader = response.body.getReader();
     const decoder = new TextDecoder();
 
     token.onCancellationRequested(() => {
-      reader.cancel();
+        reader.cancel();
     });
 
     try {
-      let result;
-      let processedUrls = new Set<string>();
+        let result;
 
-      const parser = createParser({
-        onEvent: (event) => {
-          const eventType = event.event;
-          const data = JSON.parse(event.data);
+        const parser = createParser({
+            onEvent: (event) => {
+                const eventType = event.event;
+                const data = JSON.parse(event.data);
 
-          switch (eventType) {
-            case 'start':
-              currentThreadId = data;
-              break;
-            case 'token':
-              stream.markdown(data);
-              fullText += data;
-
-              const currentUrls = extractMarkdownUrls(fullText);
-              for (const url of currentUrls) {
-                if (!processedUrls.has(url)) {
-                  stream.reference(vscode.Uri.parse(url));
-                  processedUrls.add(url);
+                switch (eventType) {
+                    case 'start':
+                        currentThreadId = data;
+                        break;
+                    case 'token':
+                        stream.markdown(data);
+                        fullText += data;
+                        break;
+                    case 'complete':
+                        currentOperationId = data.gql_operation.id;
+                        break;
+                    case 'error':
+                    case 'openai_error':
+                        throw new Error(data);
                 }
-              }
-              break;
-            case 'complete':
-              currentOperationId = data.gql_operation.id;
-              break;
-            case 'error':
-            case 'openai_error':
-              console.error(`${eventType}:`, data);
-              throw new Error(data);
-          }
-        },
-        onError: (error) => {
-          console.error('Error processing SSE data:', error);
-          throw error;
-        }
-      });
+            },
+            onError: (error) => {
+                throw error;
+            }
+        });
 
-      while ((result = await reader.read()) && !result.done) {
-        const chunk = decoder.decode(result.value);
-        parser.feed(chunk);
-      }
+        while ((result = await reader.read()) && !result.done) {
+            const chunk = decoder.decode(result.value);
+            parser.feed(chunk);
+        }
     } catch (error) {
       console.error('SSE Error:', error);
       throw error;
     } finally {
-      reader.cancel();
+        reader.cancel();
+    }
+
+    const processedUrls = new Set<string>();
+    const urls = extractMarkdownUrls(fullText);
+
+    for (const url of urls) {
+        if (!processedUrls.has(url)) {
+            stream.reference(vscode.Uri.parse(url));
+            processedUrls.add(url);
+        }
     }
 
     const codeBlocks = extractCodeBlocks(fullText);
     if (codeBlocks.length > 0 && await isShopifyApp()) {
-      stream.button({
-          command: OPEN_IN_GRAPHIQL_COMMAND_ID,
-          title: vscode.l10n.t('Open in GraphiQL'),
-          arguments: [{ codeBlocks }]
-      });
+        stream.button({
+            command: OPEN_IN_GRAPHIQL_COMMAND_ID,
+            title: vscode.l10n.t('Open in GraphiQL'),
+            arguments: [{ codeBlocks }]
+        });
     }
 
     return {
-      metadata: {
-        threadId: currentThreadId,
-        operationId: currentOperationId
-      }
+        metadata: {
+            threadId: currentThreadId,
+            operationId: currentOperationId
+        }
     };
 };
 
@@ -221,41 +220,32 @@ export function activate(extensionContext: vscode.ExtensionContext) {
   extensionContext.subscriptions.push(
     agent,
     vscode.commands.registerCommand(OPEN_IN_GRAPHIQL_COMMAND_ID, async ({ codeBlocks }) => {
-      const timeout = 30 * 1000;
-      const interval = 1000;
-      let intervalId: ReturnType<typeof setInterval> | undefined;
-
-      const message = vscode.window.setStatusBarMessage('Waiting for GraphiQL to be reachable');
-
-      const timeoutId = setTimeout(() => {
-        if (intervalId) {
-          clearInterval(intervalId);
-        }
-        message.dispose();
-        vscode.window.showErrorMessage("Couldn't reach GraphiQL.");
-      }, timeout);
-
       if (!(await isGraphiQLReachable())) {
-        // Start the dev server
+        const timeout = 30 * 1000;
+        const interval = 1000;
+
         const terminal = vscode.window.createTerminal('Shopify Dev');
         terminal.sendText('npm run shopify app dev');
         terminal.show();
 
-        // Retry until the server becomes accessible
-        intervalId = setInterval(async () => {
+        const message = vscode.window.setStatusBarMessage('Waiting for GraphiQL to be reachable');
+
+        const timeoutId = setTimeout(() => {
+          clearInterval(intervalId);
+          message.dispose();
+          vscode.window.showErrorMessage("Couldn't reach GraphiQL.");
+        }, timeout);
+
+        const intervalId = setInterval(async () => {
           if (await isGraphiQLReachable()) {
             clearTimeout(timeoutId);
-            if (intervalId) {
-              clearInterval(intervalId);
-            }
+            clearInterval(intervalId);
             message.dispose();
             openGraphiQLURLs(codeBlocks);
           }
         }, interval);
       } else {
         openGraphiQLURLs(codeBlocks);
-        clearTimeout(timeoutId);
-        message.dispose();
       }
     }),
     vscode.commands.registerCommand(CONVERT_TO_GRAPHQL_COMMAND_ID, async () => {
