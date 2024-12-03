@@ -191,4 +191,71 @@ suite('Integration Test Suite', () => {
             )
         );
     });
+
+    test('OPEN_IN_GRAPHIQL_COMMAND_ID runs dev server when GraphiQL is not reachable', async function() {
+        // Use fake timers to control time in the test
+        const clock = sandbox.useFakeTimers();
+
+        // Mock the codeBlocks that would be passed to the command
+        const codeBlocks = ['query { test }'];
+
+        // A counter to simulate fetch failing initially and succeeding afterwards
+        let fetchCallCount = 0;
+
+        // Mock the fetch API to simulate GraphiQL not being reachable at first
+        global.fetch = (async (input: Request | URL, init?: RequestInit) => {
+            fetchCallCount++;
+            if (fetchCallCount === 1) {
+                // First call fails to simulate GraphiQL not running
+                throw new Error('Failed to fetch');
+            } else {
+                // Subsequent calls succeed to simulate GraphiQL becoming reachable
+                return {
+                    ok: true,
+                } as Response;
+            }
+        }) as typeof fetch;
+
+        // Stub vscode.env.openExternal to monitor its calls
+        const openExternalStub = sandbox.stub(vscode.env, 'openExternal').resolves(true);
+
+        // Stub vscode.window.createTerminal to monitor terminal creation and commands sent
+        const sendTextStub = sandbox.stub();
+        const showStub = sandbox.stub();
+        const createTerminalStub = sandbox.stub(vscode.window, 'createTerminal').returns({
+            sendText: sendTextStub,
+            show: showStub,
+        } as any);
+
+        // Stub vscode.window.setStatusBarMessage to avoid UI updates during the test
+        const setStatusBarMessageStub = sandbox.stub(vscode.window, 'setStatusBarMessage').returns({
+            dispose: sandbox.stub(),
+        } as any);
+
+        // Execute the command with the mock codeBlocks
+        const commandPromise = vscode.commands.executeCommand('shopify.open-in-graphiql', { codeBlocks });
+
+        // Advance the clock to trigger the interval
+        await clock.tickAsync(1100); // Simulate 1.1 seconds passing
+
+        // Wait for any pending promises to resolve
+        await commandPromise;
+
+        // Verify that createTerminal was called to start the dev server
+        assert.ok(createTerminalStub.calledOnce);
+        assert.strictEqual(createTerminalStub.firstCall.args[0], 'Shopify Dev');
+
+        // Verify that the terminal was used to run the correct command
+        assert.ok(sendTextStub.calledOnceWithExactly('npm run shopify app dev'));
+        assert.ok(showStub.calledOnce);
+
+        // Verify that openExternal was eventually called to open GraphiQL
+        assert.ok(openExternalStub.calledOnce);
+
+        // Ensure that fetch was called at least twice (initial failure and subsequent success)
+        assert.ok(fetchCallCount >= 2);
+
+        // Restore the clock
+        clock.restore();
+    });
 });
