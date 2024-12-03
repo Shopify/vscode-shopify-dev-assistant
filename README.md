@@ -24,14 +24,13 @@ A VS Code extension that provides AI-powered assistance for developers building 
 
 1. Install the extension from the VS Code marketplace
 2. Ensure you have the Shopify CLI installed and configured
-3. Start using the assistant by opening VS Code's chat panel and selecting "Shopify"
+3. Start using the assistant by opening VS Code's chat panel and typing `@shopify`
 
 ## Usage
 
 1. Open VS Code's chat panel (Ctrl/Cmd + Shift + P > "Open Chat")
-2. Select "Shopify" from the chat participants
-3. Ask your question about Shopify development
-4. For GraphQL queries, click the "Open in GraphiQL" button to test them in GraphiQL
+2. Type `@shopify` followed by your prompt
+3. For GraphQL queries, click the "Open in GraphiQL" button to test them in GraphiQL
 
 ## Known Issues
 
