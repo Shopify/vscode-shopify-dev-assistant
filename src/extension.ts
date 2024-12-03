@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { Lexer, marked, TokensList } from 'marked';
+import { marked, TokensList } from 'marked';
 
 const OPEN_IN_GRAPHIQL_COMMAND_ID = 'shopify.open-in-graphiql';
 const SHOPIFY_PARTICIPANT_ID = 'shopify';
@@ -69,6 +69,7 @@ export function sendFeedback(feedback: vscode.ChatResultFeedback) {
         gql_operation: {
           user_feedback: {
             helpfulness: feedback.kind === vscode.ChatResultFeedbackKind.Helpful,
+            // we should be able to use feedback.unhelpfulReason, but it seems to be undefined (bug?)
             category: "other",
             user_feedback: "Submitted via VSCode extension"
           }
@@ -122,7 +123,6 @@ export const handler: vscode.ChatRequestHandler = async (request: vscode.ChatReq
     const reader = response.body!.getReader();
     const decoder = new TextDecoder();
 
-    // Register cleanup when the token is cancelled
     token.onCancellationRequested(() => {
       reader.cancel();
     });
@@ -199,7 +199,6 @@ export const handler: vscode.ChatRequestHandler = async (request: vscode.ChatReq
     };
 };
 
-// Function to check if GraphiQL is reachable
 const isGraphiQLReachable = async () => {
   try {
     await fetch('http://localhost:3457/graphiql');
@@ -209,7 +208,6 @@ const isGraphiQLReachable = async () => {
   }
 };
 
-// Function to open all GraphiQL URLs
 const openGraphiQLURLs = (codeBlocks: string[]) => {
   const baseUrl = 'http://localhost:3457/graphiql';
   for (const block of codeBlocks) {
