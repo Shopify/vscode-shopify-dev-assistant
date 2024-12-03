@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
 import { marked, TokensList } from 'marked';
 import { createParser } from 'eventsource-parser';
+import { renderPrompt } from '@vscode/prompt-tsx';
+import { UserPrompt } from './userPrompt';
+import { LanguageModelTextPart } from 'vscode';
 
 const OPEN_IN_GRAPHIQL_COMMAND_ID = 'shopify.open-in-graphiql';
 const SHOPIFY_PARTICIPANT_ID = 'shopify';
@@ -97,6 +100,17 @@ export const handler: vscode.ChatRequestHandler = async (request: vscode.ChatReq
 
   let fullText = '';
   const streamId = crypto.randomUUID();
+  const models = await vscode.lm.selectChatModels({ family: 'gpt-4o' });
+  const model = models[0];
+
+  const { messages } = await renderPrompt(
+    UserPrompt,
+    { request },
+    { modelMaxPromptTokens: model.maxInputTokens },
+    model
+  );
+
+  const prompt = (messages[0].content[0] as LanguageModelTextPart).value;
 
   const response = await fetch('https://shopify.dev/llm/gql_operations', {
     method: 'POST',
@@ -110,7 +124,7 @@ export const handler: vscode.ChatRequestHandler = async (request: vscode.ChatReq
       stream_id: streamId,
       thread_id: currentThreadId,
       gql_operation: {
-        user_prompt: request.prompt,
+        user_prompt: prompt,
       },
     }),
   });
