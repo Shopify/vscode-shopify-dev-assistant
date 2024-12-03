@@ -83,114 +83,114 @@ export function sendFeedback(feedback: vscode.ChatResultFeedback) {
 }
 
 export const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IShopifyChatResult> => {
-    let currentThreadId: string | undefined;
-    let currentOperationId: string | undefined;
+  let currentThreadId: string | undefined;
+  let currentOperationId: string | undefined;
 
-    if (context.history.length === 0) {
-        currentThreadId = undefined;
-    } else {
-        const lastResponse = context.history[context.history.length - 1];
-        if ('result' in lastResponse && lastResponse.result.metadata?.threadId) {
-            currentThreadId = lastResponse.result.metadata.threadId;
-        }
+  if (context.history.length === 0) {
+    currentThreadId = undefined;
+  } else {
+    const lastResponse = context.history[context.history.length - 1];
+    if ('result' in lastResponse && lastResponse.result.metadata?.threadId) {
+      currentThreadId = lastResponse.result.metadata.threadId;
     }
+  }
 
-    let fullText = '';
-    const streamId = crypto.randomUUID();
+  let fullText = '';
+  const streamId = crypto.randomUUID();
 
-    const response = await fetch('https://shopify.dev/llm/gql_operations', {
-        method: 'POST',
-        headers: {
-            'Accept': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            stream_id: streamId,
-            thread_id: currentThreadId,
-            gql_operation: {
-                user_prompt: request.prompt,
-            },
-        }),
+  const response = await fetch('https://shopify.dev/llm/gql_operations', {
+    method: 'POST',
+    headers: {
+      'Accept': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      stream_id: streamId,
+      thread_id: currentThreadId,
+      gql_operation: {
+        user_prompt: request.prompt,
+      },
+    }),
+  });
+
+  if (!response.ok || !response.body) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  token.onCancellationRequested(() => {
+    reader.cancel();
+  });
+
+  try {
+    let result;
+
+    const parser = createParser({
+      onEvent: (event) => {
+        const eventType = event.event;
+        const data = JSON.parse(event.data);
+
+        switch (eventType) {
+          case 'start':
+            currentThreadId = data;
+            break;
+          case 'token':
+            stream.markdown(data);
+            fullText += data;
+            break;
+          case 'complete':
+            currentOperationId = data.gql_operation.id;
+            break;
+          case 'error':
+          case 'openai_error':
+            throw new Error(data);
+        }
+      },
+      onError: (error) => {
+        throw error;
+      }
     });
 
-    if (!response.ok || !response.body) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    while ((result = await reader.read()) && !result.done) {
+      const chunk = decoder.decode(result.value);
+      parser.feed(chunk);
     }
+  } catch (error) {
+    console.error('SSE Error:', error);
+    throw error;
+  } finally {
+    reader.cancel();
+  }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
+  const processedUrls = new Set<string>();
+  const urls = extractMarkdownUrls(fullText);
 
-    token.onCancellationRequested(() => {
-        reader.cancel();
+  for (const url of urls) {
+    if (!processedUrls.has(url)) {
+      stream.reference(vscode.Uri.parse(url));
+      processedUrls.add(url);
+    }
+  }
+
+  const codeBlocks = extractCodeBlocks(fullText);
+  if (codeBlocks.length > 0 && await isShopifyApp()) {
+    stream.button({
+      command: OPEN_IN_GRAPHIQL_COMMAND_ID,
+      title: vscode.l10n.t('Open in GraphiQL'),
+      arguments: [{ codeBlocks }]
     });
+  }
 
-    try {
-        let result;
-
-        const parser = createParser({
-            onEvent: (event) => {
-                const eventType = event.event;
-                const data = JSON.parse(event.data);
-
-                switch (eventType) {
-                    case 'start':
-                        currentThreadId = data;
-                        break;
-                    case 'token':
-                        stream.markdown(data);
-                        fullText += data;
-                        break;
-                    case 'complete':
-                        currentOperationId = data.gql_operation.id;
-                        break;
-                    case 'error':
-                    case 'openai_error':
-                        throw new Error(data);
-                }
-            },
-            onError: (error) => {
-                throw error;
-            }
-        });
-
-        while ((result = await reader.read()) && !result.done) {
-            const chunk = decoder.decode(result.value);
-            parser.feed(chunk);
-        }
-    } catch (error) {
-      console.error('SSE Error:', error);
-      throw error;
-    } finally {
-        reader.cancel();
+  return {
+    metadata: {
+      threadId: currentThreadId,
+      operationId: currentOperationId
     }
-
-    const processedUrls = new Set<string>();
-    const urls = extractMarkdownUrls(fullText);
-
-    for (const url of urls) {
-        if (!processedUrls.has(url)) {
-            stream.reference(vscode.Uri.parse(url));
-            processedUrls.add(url);
-        }
-    }
-
-    const codeBlocks = extractCodeBlocks(fullText);
-    if (codeBlocks.length > 0 && await isShopifyApp()) {
-        stream.button({
-            command: OPEN_IN_GRAPHIQL_COMMAND_ID,
-            title: vscode.l10n.t('Open in GraphiQL'),
-            arguments: [{ codeBlocks }]
-        });
-    }
-
-    return {
-        metadata: {
-            threadId: currentThreadId,
-            operationId: currentOperationId
-        }
-    };
+  };
 };
 
 const isGraphiQLReachable = async () => {
@@ -265,7 +265,7 @@ export function activate(extensionContext: vscode.ExtensionContext) {
       const prompt = `@shopify I want to convert the following code wrapped in triple backticks to GraphQL:
 
 \`\`\`
-${selectedText}
+      ${selectedText}
 \`\`\``;
 
       await vscode.commands.executeCommand('workbench.action.chat.open', prompt);
