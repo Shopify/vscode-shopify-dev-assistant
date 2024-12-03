@@ -127,4 +127,66 @@ suite('Chat Integration Tests', () => {
         // Restore the stub after the test
         openExternalStub.restore();
     });
+
+    test('convert-to-graphql command opens chat with correct prompt', async () => {
+      // Mock the active text editor with selected text
+      const mockEditor = {
+          document: {
+              getText: (selection: any) => 'const x = 42;'
+          },
+          selection: {}
+      };
+      const activeTextEditorStub = sinon.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+
+      // Stub showWarningMessage to monitor warnings
+      const showWarningMessageStub = sinon.stub(vscode.window, 'showWarningMessage');
+
+      // Stub executeCommand to monitor command executions
+      const executeCommandStub = sinon.stub(vscode.commands, 'executeCommand').callThrough();
+
+      // Execute the command
+      await vscode.commands.executeCommand('shopify.convert-to-graphql');
+
+      // Verify that the chat was opened with the correct prompt
+      sinon.assert.calledWith(
+          executeCommandStub,
+          'workbench.action.chat.open',
+          `@shopify I want to convert the following code wrapped in triple backticks to GraphQL:\n\n\`\`\`\nconst x = 42;\n\`\`\``
+      );
+
+      // Ensure no warning message was shown
+      sinon.assert.notCalled(showWarningMessageStub);
+
+      // Restore stubs
+      activeTextEditorStub.restore();
+      showWarningMessageStub.restore();
+      executeCommandStub.restore();
+  });
+
+  test('convert-to-graphql command shows warning when no text is selected', async () => {
+      // Mock the active text editor without selected text
+      const mockEditor = {
+          document: {
+              getText: (selection: any) => ''
+          },
+          selection: {}
+      };
+      const activeTextEditorStub = sinon.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+
+      // Stub showWarningMessage to monitor warnings
+      const showWarningMessageStub = sinon.stub(vscode.window, 'showWarningMessage');
+
+      // Execute the command
+      await vscode.commands.executeCommand('shopify.convert-to-graphql');
+
+      // Verify that a warning message was shown
+      sinon.assert.calledWith(
+          showWarningMessageStub,
+          'Please select some text to convert to GraphQL'
+      );
+
+      // Restore stubs
+      activeTextEditorStub.restore();
+      showWarningMessageStub.restore();
+  });
 });
