@@ -158,14 +158,12 @@ export const handler: vscode.ChatRequestHandler = async (request: vscode.ChatReq
     }
 
     const codeBlocks = extractCodeBlocks(fullText);
-    if (codeBlocks.length > 0) {
-      if (await isShopifyApp()) {
-        stream.button({
+    if (codeBlocks.length > 0 && await isShopifyApp()) {
+      stream.button({
           command: OPEN_IN_GRAPHIQL_COMMAND_ID,
           title: vscode.l10n.t('Open in GraphiQL'),
           arguments: [{ codeBlocks }]
-        });
-      }
+      });
     }
 
     return {
