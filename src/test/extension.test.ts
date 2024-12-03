@@ -108,7 +108,7 @@ suite('Integration Test Suite', () => {
         assert.strictEqual(result.metadata.operationId, 'test-op-id');
     });
 
-    test('OPEN_IN_GRAPHIQL_COMMAND_ID opens the correct URLs', async () => {
+    test('open-in-graphiql opens the correct URLs', async () => {
         // Mock the codeBlocks that would be passed to the command
         const codeBlocks = ['query { test }', 'mutation { update }'];
 
@@ -192,7 +192,7 @@ suite('Integration Test Suite', () => {
         );
     });
 
-    test('OPEN_IN_GRAPHIQL_COMMAND_ID runs dev server when GraphiQL is not reachable', async function() {
+    test('open-in-graphiql runs dev server when GraphiQL is not reachable', async function() {
         // Use fake timers to control time in the test
         const clock = sandbox.useFakeTimers();
 

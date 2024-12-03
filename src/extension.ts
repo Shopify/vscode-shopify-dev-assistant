@@ -199,6 +199,26 @@ export const handler: vscode.ChatRequestHandler = async (request: vscode.ChatReq
     };
 };
 
+// Function to check if GraphiQL is reachable
+const isGraphiQLReachable = async () => {
+  try {
+    await fetch('http://localhost:3457/graphiql');
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
+// Function to open all GraphiQL URLs
+const openGraphiQLURLs = (codeBlocks: string[]) => {
+  const baseUrl = 'http://localhost:3457/graphiql';
+  for (const block of codeBlocks) {
+    const encodedQuery = encodeURIComponent(block).replace(/%20/g, '+');
+    const url = `${baseUrl}?query=${encodedQuery}`;
+    vscode.env.openExternal(vscode.Uri.parse(url));
+  }
+};
+
 export function activate(extensionContext: vscode.ExtensionContext) {
   const agent = vscode.chat.createChatParticipant(SHOPIFY_PARTICIPANT_ID, handler);
   agent.iconPath = vscode.Uri.joinPath(extensionContext.extensionUri, 'icon.png');
@@ -207,23 +227,10 @@ export function activate(extensionContext: vscode.ExtensionContext) {
 
   extensionContext.subscriptions.push(
     agent,
-    vscode.commands.registerCommand(OPEN_IN_GRAPHIQL_COMMAND_ID, async ({codeBlocks}) => {
-      // Function to check and open a specific URL
-      const checkAndOpenUrl = async (query: string) => {
-        const encodedQuery = encodeURIComponent(query).replace(/%20/g, '+');
-        const url = `http://localhost:3457/graphiql?query=${encodedQuery}`;
-        try {
-          await fetch(url);
-          vscode.env.openExternal(vscode.Uri.parse(url));
-          return true;
-        } catch (error) {
-          return false;
-        }
-      };
-
+    vscode.commands.registerCommand(OPEN_IN_GRAPHIQL_COMMAND_ID, async ({ codeBlocks }) => {
       const timeout = 30 * 1000;
       const interval = 1000;
-      let intervalId: ReturnType<typeof setTimeout> | undefined;
+      let intervalId: ReturnType<typeof setInterval> | undefined;
 
       const message = vscode.window.setStatusBarMessage('Waiting for GraphiQL to be reachable');
 
@@ -235,43 +242,25 @@ export function activate(extensionContext: vscode.ExtensionContext) {
         vscode.window.showErrorMessage("Couldn't reach GraphiQL.");
       }, timeout);
 
-      // Try to open all URLs first
-      let allSucceeded = true;
-      for (const block of codeBlocks) {
-        if (!(await checkAndOpenUrl(block))) {
-          allSucceeded = false;
-          break;
-        }
-      }
-
-      // If any URL failed, start the dev server and retry
-      if (!allSucceeded) {
+      if (!(await isGraphiQLReachable())) {
+        // Start the dev server
         const terminal = vscode.window.createTerminal('Shopify Dev');
-        terminal.sendText("npm run shopify app dev");
+        terminal.sendText('npm run shopify app dev');
         terminal.show();
 
+        // Retry until the server becomes accessible
         intervalId = setInterval(async () => {
-          try {
-            let allOpened = true;
-            for (const block of codeBlocks) {
-              if (!(await checkAndOpenUrl(block))) {
-                allOpened = false;
-                break;
-              }
+          if (await isGraphiQLReachable()) {
+            clearTimeout(timeoutId);
+            if (intervalId) {
+              clearInterval(intervalId);
             }
-            if (allOpened) {
-              clearTimeout(timeoutId);
-              if (intervalId) {
-                clearInterval(intervalId);
-              }
-              message.dispose();
-            }
-          } catch (error) {
-            // Ignore errors
+            message.dispose();
+            openGraphiQLURLs(codeBlocks);
           }
         }, interval);
       } else {
-        // All URLs opened successfully
+        openGraphiQLURLs(codeBlocks);
         clearTimeout(timeoutId);
         message.dispose();
       }
