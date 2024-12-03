@@ -51,7 +51,6 @@ suite('Integration Test Suite', () => {
     });
 
     test('Chat handler processes stream correctly', async () => {
-        // Mock the fetch API
         global.fetch = async () => {
             let firstCall = true;
             return {
@@ -78,7 +77,6 @@ suite('Integration Test Suite', () => {
             } as any;
         };
 
-        // Create mock objects with required properties
         const request: vscode.ChatRequest = {
             prompt: 'test prompt',
             command: 'shopify.convert-to-graphql',
@@ -101,7 +99,6 @@ suite('Integration Test Suite', () => {
 
         const result = await handler(request, context, stream, token);
 
-        // Add null checks for type safety
         assert.ok(result?.metadata?.threadId);
         assert.ok(result?.metadata?.operationId);
         assert.strictEqual(result.metadata.threadId, 'test-thread-id');
@@ -109,24 +106,18 @@ suite('Integration Test Suite', () => {
     });
 
     test('open-in-graphiql opens the correct URLs', async () => {
-        // Mock the codeBlocks that would be passed to the command
         const codeBlocks = ['query { test }', 'mutation { update }'];
 
-        // Mock the fetch API to simulate successful responses
         global.fetch = (async (input: Request | URL, init?: RequestInit) => {
             return {
                 ok: true,
-                // Additional properties if needed
             } as Response;
         }) as typeof fetch;
 
-        // Stub vscode.env.openExternal to monitor its calls
         const openExternalStub = sandbox.stub(vscode.env, 'openExternal').resolves(true);
 
-        // Execute the command with the mock codeBlocks
         await vscode.commands.executeCommand('shopify.open-in-graphiql', { codeBlocks });
 
-        // Verify that openExternal was called with the correct URLs
         assert.strictEqual(openExternalStub.callCount, codeBlocks.length);
         for (let i = 0; i < codeBlocks.length; i++) {
             const encodedQuery = encodeURIComponent(codeBlocks[i]).replace(/%20/g, '+');
@@ -136,7 +127,6 @@ suite('Integration Test Suite', () => {
     });
 
     test('convert-to-graphql command opens chat with correct prompt', async () => {
-        // Mock the active text editor with selected text
         const mockEditor = {
             document: {
                 getText: (selection: any) => 'const x = 42;'
@@ -145,16 +135,12 @@ suite('Integration Test Suite', () => {
         };
         sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
 
-        // Stub showWarningMessage to monitor warnings
         const showWarningMessageStub = sandbox.stub(vscode.window, 'showWarningMessage');
 
-        // Stub executeCommand to monitor command executions
         const executeCommandStub = sandbox.stub(vscode.commands, 'executeCommand').callThrough();
 
-        // Execute the command
         await vscode.commands.executeCommand('shopify.convert-to-graphql');
 
-        // Verify that the chat was opened with the correct prompt
         assert.ok(
             executeCommandStub.calledWith(
                 'workbench.action.chat.open',
@@ -162,14 +148,12 @@ suite('Integration Test Suite', () => {
             )
         );
 
-        // Ensure no warning message was shown
         assert.ok(
             showWarningMessageStub.notCalled
         );
     });
 
     test('convert-to-graphql command shows warning when no text is selected', async () => {
-        // Mock the active text editor without selected text
         const mockEditor = {
             document: {
                 getText: (selection: any) => ''
@@ -178,13 +162,10 @@ suite('Integration Test Suite', () => {
         };
         sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
 
-        // Stub showWarningMessage to monitor warnings
         const showWarningMessageStub = sandbox.stub(vscode.window, 'showWarningMessage');
 
-        // Execute the command
         await vscode.commands.executeCommand('shopify.convert-to-graphql');
 
-        // Verify that a warning message was shown
         assert.ok(
             showWarningMessageStub.calledWith(
                 'Please select some text to convert to GraphQL'
@@ -193,33 +174,25 @@ suite('Integration Test Suite', () => {
     });
 
     test('open-in-graphiql runs dev server when GraphiQL is not reachable', async function() {
-        // Use fake timers to control time in the test
         const clock = sandbox.useFakeTimers();
 
-        // Mock the codeBlocks that would be passed to the command
         const codeBlocks = ['query { test }'];
 
-        // A counter to simulate fetch failing initially and succeeding afterwards
         let fetchCallCount = 0;
 
-        // Mock the fetch API to simulate GraphiQL not being reachable at first
         global.fetch = (async (input: Request | URL, init?: RequestInit) => {
             fetchCallCount++;
             if (fetchCallCount === 1) {
-                // First call fails to simulate GraphiQL not running
                 throw new Error('Failed to fetch');
             } else {
-                // Subsequent calls succeed to simulate GraphiQL becoming reachable
                 return {
                     ok: true,
                 } as Response;
             }
         }) as typeof fetch;
 
-        // Stub vscode.env.openExternal to monitor its calls
         const openExternalStub = sandbox.stub(vscode.env, 'openExternal').resolves(true);
 
-        // Stub vscode.window.createTerminal to monitor terminal creation and commands sent
         const sendTextStub = sandbox.stub();
         const showStub = sandbox.stub();
         const createTerminalStub = sandbox.stub(vscode.window, 'createTerminal').returns({
@@ -227,40 +200,30 @@ suite('Integration Test Suite', () => {
             show: showStub,
         } as any);
 
-        // Stub vscode.window.setStatusBarMessage to avoid UI updates during the test
         sandbox.stub(vscode.window, 'setStatusBarMessage').returns({
             dispose: sandbox.stub(),
         } as any);
 
-        // Execute the command with the mock codeBlocks
         const commandPromise = vscode.commands.executeCommand('shopify.open-in-graphiql', { codeBlocks });
 
-        // Advance the clock to trigger the interval
-        await clock.tickAsync(1100); // Simulate 1.1 seconds passing
+        await clock.tickAsync(1100);
 
-        // Wait for any pending promises to resolve
         await commandPromise;
 
-        // Verify that createTerminal was called to start the dev server
         assert.ok(createTerminalStub.calledOnce);
         assert.strictEqual(createTerminalStub.firstCall.args[0], 'Shopify Dev');
 
-        // Verify that the terminal was used to run the correct command
         assert.ok(sendTextStub.calledOnceWithExactly('npm run shopify app dev'));
         assert.ok(showStub.calledOnce);
 
-        // Verify that openExternal was eventually called to open GraphiQL
         assert.ok(openExternalStub.calledOnce);
 
-        // Ensure that fetch was called at least twice (initial failure and subsequent success)
         assert.ok(fetchCallCount >= 2);
 
-        // Restore the clock
         clock.restore();
     });
 
     test('sendFeedback sends feedback to the server', async () => {
-        // Arrange
         const fetchStub = sandbox.stub(global, 'fetch').resolves({ ok: true } as Response);
         const feedback: vscode.ChatResultFeedback = {
             kind: vscode.ChatResultFeedbackKind.Helpful,
@@ -271,10 +234,8 @@ suite('Integration Test Suite', () => {
             }
         };
 
-        // Act
         sendFeedback(feedback);
 
-        // Assert
         assert.ok(fetchStub.calledOnce);
         assert.strictEqual(
             fetchStub.firstCall.args[0],
