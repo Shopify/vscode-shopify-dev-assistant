@@ -3,6 +3,7 @@ import { Lexer, marked, TokensList } from 'marked';
 
 const OPEN_IN_GRAPHIQL_COMMAND_ID = 'shopify.open-in-graphiql';
 const SHOPIFY_PARTICIPANT_ID = 'shopify';
+const CONVERT_TO_GRAPHQL_COMMAND_ID = 'shopify.convert-to-graphql';
 
 interface IShopifyChatResult extends vscode.ChatResult {
   metadata: {
@@ -53,6 +54,30 @@ async function isShopifyApp(): Promise<boolean> {
     }
   }
   return false;
+}
+
+export function sendFeedback(feedback: vscode.ChatResultFeedback) {
+  const operationId = feedback.result.metadata?.operationId;
+
+  if (operationId) {
+    fetch(`https://shopify.dev/llm/gql_operations/${operationId}/feedback`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        gql_operation: {
+          user_feedback: {
+            helpfulness: feedback.kind === vscode.ChatResultFeedbackKind.Helpful,
+            category: "other",
+            user_feedback: "Submitted via VSCode extension"
+          }
+        }
+      })
+    }).catch(error => {
+      console.error('Failed to send feedback:', error);
+    });
+  }
 }
 
 export const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IShopifyChatResult> => {
@@ -178,30 +203,7 @@ export function activate(extensionContext: vscode.ExtensionContext) {
   const agent = vscode.chat.createChatParticipant(SHOPIFY_PARTICIPANT_ID, handler);
   agent.iconPath = vscode.Uri.joinPath(extensionContext.extensionUri, 'icon.png');
 
-  extensionContext.subscriptions.push(agent.onDidReceiveFeedback((feedback: vscode.ChatResultFeedback) => {
-    const operationId = feedback.result.metadata?.operationId;
-
-    if (operationId) {
-      fetch(`https://shopify.dev/llm/gql_operations/${operationId}/feedback`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          gql_operation: {
-            user_feedback: {
-              helpfulness: feedback.kind === vscode.ChatResultFeedbackKind.Helpful,
-              // we should be able to use feedback.unhelpfulReason, but it seems to be undefined (bug?)
-              category: "other",
-              user_feedback: "Submitted via VSCode extension"
-            }
-          }
-        })
-      }).catch(error => {
-        console.error('Failed to send feedback:', error);
-      });
-    }
-  }));
+  extensionContext.subscriptions.push(agent.onDidReceiveFeedback(sendFeedback));
 
   extensionContext.subscriptions.push(
     agent,
@@ -274,7 +276,7 @@ export function activate(extensionContext: vscode.ExtensionContext) {
         message.dispose();
       }
     }),
-    vscode.commands.registerCommand('shopify.convert-to-graphql', async () => {
+    vscode.commands.registerCommand(CONVERT_TO_GRAPHQL_COMMAND_ID, async () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
         return;

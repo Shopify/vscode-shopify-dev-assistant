@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { extractMarkdownUrls, extractCodeBlocks, handler } from '../extension';
+import { extractMarkdownUrls, extractCodeBlocks, handler, sendFeedback } from '../extension';
 import * as sinon from 'sinon';
 
 suite('Unit Test Suite', () => {
@@ -143,7 +143,7 @@ suite('Integration Test Suite', () => {
             },
             selection: {}
         };
-        const activeTextEditorStub = sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+        sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
 
         // Stub showWarningMessage to monitor warnings
         const showWarningMessageStub = sandbox.stub(vscode.window, 'showWarningMessage');
@@ -176,7 +176,7 @@ suite('Integration Test Suite', () => {
             },
             selection: {}
         };
-        const activeTextEditorStub = sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+        sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
 
         // Stub showWarningMessage to monitor warnings
         const showWarningMessageStub = sandbox.stub(vscode.window, 'showWarningMessage');
@@ -228,7 +228,7 @@ suite('Integration Test Suite', () => {
         } as any);
 
         // Stub vscode.window.setStatusBarMessage to avoid UI updates during the test
-        const setStatusBarMessageStub = sandbox.stub(vscode.window, 'setStatusBarMessage').returns({
+        sandbox.stub(vscode.window, 'setStatusBarMessage').returns({
             dispose: sandbox.stub(),
         } as any);
 
@@ -257,5 +257,38 @@ suite('Integration Test Suite', () => {
 
         // Restore the clock
         clock.restore();
+    });
+
+    test('sendFeedback sends feedback to the server', async () => {
+        // Arrange
+        const fetchStub = sandbox.stub(global, 'fetch').resolves({ ok: true } as Response);
+        const feedback: vscode.ChatResultFeedback = {
+            kind: vscode.ChatResultFeedbackKind.Helpful,
+            result: {
+                metadata: {
+                    operationId: 'test-operation-id'
+                }
+            }
+        };
+
+        // Act
+        sendFeedback(feedback);
+
+        // Assert
+        assert.ok(fetchStub.calledOnce);
+        assert.strictEqual(
+            fetchStub.firstCall.args[0],
+            'https://shopify.dev/llm/gql_operations/test-operation-id/feedback'
+        );
+        const body = JSON.parse(fetchStub.firstCall.args[1]?.body as string);
+        assert.deepStrictEqual(body, {
+            gql_operation: {
+                user_feedback: {
+                    helpfulness: true,
+                    category: 'other',
+                    user_feedback: 'Submitted via VSCode extension'
+                }
+            }
+        });
     });
 });
