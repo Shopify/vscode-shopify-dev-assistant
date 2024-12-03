@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { extractMarkdownUrls, extractCodeBlocks, handler } from '../extension';
 import * as sinon from 'sinon';
 
-suite('Extension Test Suite', () => {
+suite('Unit Test Suite', () => {
     test('extractMarkdownUrls extracts correct URLs', () => {
         const testText = 'Here is a [link](https://example.com) and [another](https://test.com)';
         const urls = extractMarkdownUrls(testText);
@@ -39,7 +39,17 @@ suite('Extension Test Suite', () => {
     });
 });
 
-suite('Chat Integration Tests', () => {
+suite('Integration Test Suite', () => {
+    let sandbox: sinon.SinonSandbox;
+
+    setup(() => {
+        sandbox = sinon.createSandbox();
+    });
+
+    teardown(() => {
+        sandbox.restore();
+    });
+
     test('Chat handler processes stream correctly', async () => {
         // Mock the fetch API
         global.fetch = async () => {
@@ -111,7 +121,7 @@ suite('Chat Integration Tests', () => {
         }) as typeof fetch;
 
         // Stub vscode.env.openExternal to monitor its calls
-        const openExternalStub = sinon.stub(vscode.env, 'openExternal').resolves(true);
+        const openExternalStub = sandbox.stub(vscode.env, 'openExternal').resolves(true);
 
         // Execute the command with the mock codeBlocks
         await vscode.commands.executeCommand('shopify.open-in-graphiql', { codeBlocks });
@@ -123,70 +133,62 @@ suite('Chat Integration Tests', () => {
             const expectedUrl = `http://localhost:3457/graphiql?query=${encodedQuery}`;
             assert.ok(openExternalStub.getCall(i).calledWith(vscode.Uri.parse(expectedUrl)));
         }
-
-        // Restore the stub after the test
-        openExternalStub.restore();
     });
 
     test('convert-to-graphql command opens chat with correct prompt', async () => {
-      // Mock the active text editor with selected text
-      const mockEditor = {
-          document: {
-              getText: (selection: any) => 'const x = 42;'
-          },
-          selection: {}
-      };
-      const activeTextEditorStub = sinon.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+        // Mock the active text editor with selected text
+        const mockEditor = {
+            document: {
+                getText: (selection: any) => 'const x = 42;'
+            },
+            selection: {}
+        };
+        const activeTextEditorStub = sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
 
-      // Stub showWarningMessage to monitor warnings
-      const showWarningMessageStub = sinon.stub(vscode.window, 'showWarningMessage');
+        // Stub showWarningMessage to monitor warnings
+        const showWarningMessageStub = sandbox.stub(vscode.window, 'showWarningMessage');
 
-      // Stub executeCommand to monitor command executions
-      const executeCommandStub = sinon.stub(vscode.commands, 'executeCommand').callThrough();
+        // Stub executeCommand to monitor command executions
+        const executeCommandStub = sandbox.stub(vscode.commands, 'executeCommand').callThrough();
 
-      // Execute the command
-      await vscode.commands.executeCommand('shopify.convert-to-graphql');
+        // Execute the command
+        await vscode.commands.executeCommand('shopify.convert-to-graphql');
 
-      // Verify that the chat was opened with the correct prompt
-      sinon.assert.calledWith(
-          executeCommandStub,
-          'workbench.action.chat.open',
-          `@shopify I want to convert the following code wrapped in triple backticks to GraphQL:\n\n\`\`\`\nconst x = 42;\n\`\`\``
-      );
+        // Verify that the chat was opened with the correct prompt
+        assert.ok(
+            executeCommandStub.calledWith(
+                'workbench.action.chat.open',
+                `@shopify I want to convert the following code wrapped in triple backticks to GraphQL:\n\n\`\`\`\nconst x = 42;\n\`\`\``
+            )
+        );
 
-      // Ensure no warning message was shown
-      sinon.assert.notCalled(showWarningMessageStub);
+        // Ensure no warning message was shown
+        assert.ok(
+            showWarningMessageStub.notCalled
+        );
+    });
 
-      // Restore stubs
-      activeTextEditorStub.restore();
-      showWarningMessageStub.restore();
-      executeCommandStub.restore();
-  });
+    test('convert-to-graphql command shows warning when no text is selected', async () => {
+        // Mock the active text editor without selected text
+        const mockEditor = {
+            document: {
+                getText: (selection: any) => ''
+            },
+            selection: {}
+        };
+        const activeTextEditorStub = sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
 
-  test('convert-to-graphql command shows warning when no text is selected', async () => {
-      // Mock the active text editor without selected text
-      const mockEditor = {
-          document: {
-              getText: (selection: any) => ''
-          },
-          selection: {}
-      };
-      const activeTextEditorStub = sinon.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+        // Stub showWarningMessage to monitor warnings
+        const showWarningMessageStub = sandbox.stub(vscode.window, 'showWarningMessage');
 
-      // Stub showWarningMessage to monitor warnings
-      const showWarningMessageStub = sinon.stub(vscode.window, 'showWarningMessage');
+        // Execute the command
+        await vscode.commands.executeCommand('shopify.convert-to-graphql');
 
-      // Execute the command
-      await vscode.commands.executeCommand('shopify.convert-to-graphql');
-
-      // Verify that a warning message was shown
-      sinon.assert.calledWith(
-          showWarningMessageStub,
-          'Please select some text to convert to GraphQL'
-      );
-
-      // Restore stubs
-      activeTextEditorStub.restore();
-      showWarningMessageStub.restore();
-  });
+        // Verify that a warning message was shown
+        assert.ok(
+            showWarningMessageStub.calledWith(
+                'Please select some text to convert to GraphQL'
+            )
+        );
+    });
 });

@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { Lexer, marked, TokensList } from 'marked';
 
 const OPEN_IN_GRAPHIQL_COMMAND_ID = 'shopify.open-in-graphiql';
 const SHOPIFY_PARTICIPANT_ID = 'shopify';
@@ -12,31 +13,46 @@ interface IShopifyChatResult extends vscode.ChatResult {
 
 export function extractMarkdownUrls(fullText: string): Set<string> {
   const urls = new Set<string>();
+  const tokens = marked.lexer(fullText);
 
-  let currentIndex = 0;
-  while (true) {
-    // Find opening of markdown link
-    const linkStart = fullText.indexOf('](', currentIndex);
-    if (linkStart === -1) {
-      break;
-    }
-
-    // Find closing parenthesis
-    const linkEnd = fullText.indexOf(')', linkStart + 2);
-    if (linkEnd === -1) {
-      break;
-    }
-
-    // Extract the URL
-    const url = fullText.substring(linkStart + 2, linkEnd);
-    if (url.startsWith('http')) {
-      urls.add(url);
-    }
-
-    currentIndex = linkEnd + 1;
+  function processTokens(tokens: TokensList) {
+    tokens.forEach(token => {
+      if (token.type === 'link' && 'href' in token && token.href.startsWith('http')) {
+        urls.add(token.href);
+      }
+      if ('tokens' in token && Array.isArray(token.tokens)) {
+        processTokens(token.tokens as TokensList);
+      }
+    });
   }
 
+  processTokens(tokens);
   return urls;
+}
+
+export function extractCodeBlocks(fullText: string): string[] {
+  const codeBlocks: string[] = [];
+  const tokens = marked.lexer(fullText);
+  tokens.forEach(token => {
+    if (token.type === 'code' && token.lang === 'graphql') {
+      codeBlocks.push(token.text.trim());
+    }
+  });
+  return codeBlocks;
+}
+
+async function isShopifyApp(): Promise<boolean> {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  if (workspaceFolder) {
+    try {
+      const shopifyTomlPath = vscode.Uri.joinPath(workspaceFolder.uri, 'shopify.app.toml');
+      await vscode.workspace.fs.stat(shopifyTomlPath);
+      return true;
+    } catch (error) {
+      console.log('Not a Shopify app - missing shopify.app.toml');
+    }
+  }
+  return false;
 }
 
 export const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IShopifyChatResult> => {
@@ -143,22 +159,12 @@ export const handler: vscode.ChatRequestHandler = async (request: vscode.ChatReq
 
     const codeBlocks = extractCodeBlocks(fullText);
     if (codeBlocks.length > 0) {
-      // Check if we're in a Shopify app by looking for shopify.app.toml
-      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-      if (workspaceFolder) {
-        try {
-          const shopifyTomlPath = vscode.Uri.joinPath(workspaceFolder.uri, 'shopify.app.toml');
-          await vscode.workspace.fs.stat(shopifyTomlPath); // Will throw if file doesn't exist
-
-          stream.button({
-            command: OPEN_IN_GRAPHIQL_COMMAND_ID,
-            title: vscode.l10n.t('Open in GraphiQL'),
-            arguments: [{ codeBlocks }]
-          });
-        } catch (error) {
-          // If shopify.app.toml doesn't exist, don't show the button
-          console.log('Not a Shopify app - missing shopify.app.toml');
-        }
+      if (await isShopifyApp()) {
+        stream.button({
+          command: OPEN_IN_GRAPHIQL_COMMAND_ID,
+          title: vscode.l10n.t('Open in GraphiQL'),
+          arguments: [{ codeBlocks }]
+        });
       }
     }
 
@@ -296,26 +302,3 @@ ${selectedText}
 }
 
 export function deactivate() {}
-
-export function extractCodeBlocks(fullText: string): string[] {
-  let inCodeBlock = false;
-  let currentBlock = '';
-  const codeBlocks: string[] = [];
-
-  // Split the full text into lines for processing
-  const textLines = fullText.split('\n');
-
-  for (const line of textLines) {
-    if (line.trim() === '```graphql') {
-      inCodeBlock = true;
-    } else if (line.trim() === '```' && currentBlock.trim().length > 0) {
-      inCodeBlock = false;
-      codeBlocks.push(currentBlock.trim());
-      currentBlock = '';
-    } else if (inCodeBlock) {
-      currentBlock += line + '\n';
-    }
-  }
-
-  return codeBlocks;
-}
