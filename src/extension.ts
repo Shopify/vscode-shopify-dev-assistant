@@ -72,7 +72,8 @@ export function sendFeedback(feedback: vscode.ChatResultFeedback) {
     fetch(`https://shopify.dev/llm/gql_operations/${operationId}/feedback`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-Shopify-Surface': 'vscode'
       },
       body: JSON.stringify({
         gql_operation: {
@@ -169,6 +170,7 @@ export const handler: vscode.ChatRequestHandler = async (request: vscode.ChatReq
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
       'Content-Type': 'application/json',
+      'X-Shopify-Surface': 'vscode'
     },
     body: JSON.stringify({
       stream_id: streamId,
