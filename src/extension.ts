@@ -103,12 +103,18 @@ export const handler: vscode.ChatRequestHandler = async (request: vscode.ChatReq
   const models = await vscode.lm.selectChatModels({ family: 'gpt-4o' });
   const model = models[0];
 
-  const { messages } = await renderPrompt(
+  const { messages, references } = await renderPrompt(
     UserPrompt,
     { request },
     { modelMaxPromptTokens: model.maxInputTokens },
     model
   );
+
+  references.forEach(ref => {
+    if (ref.anchor instanceof vscode.Uri || ref.anchor instanceof vscode.Location) {
+      stream.reference(ref.anchor);
+    }
+  });
 
   const prompt = (messages[0].content[0] as LanguageModelTextPart).value;
 

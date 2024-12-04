@@ -3,6 +3,7 @@ import {
 	PromptElement,
 	PromptElementProps,
 	PromptPiece,
+	PromptReference,
 	PromptSizing,
 	UserMessage
 } from '@vscode/prompt-tsx';
@@ -53,6 +54,7 @@ class PromptReferenceElement extends PromptElement<PromptReferenceProps> {
 			const fileContents = (await vscode.workspace.fs.readFile(value)).toString();
 			return (
 				<Tag name="context">
+          <references value={[new PromptReference(value)]} />
 					{value.fsPath}:<br />
 					``` <br />
 					{fileContents}<br />
@@ -63,6 +65,7 @@ class PromptReferenceElement extends PromptElement<PromptReferenceProps> {
 			const rangeText = (await vscode.workspace.openTextDocument(value.uri)).getText(value.range);
 			return (
 				<Tag name="context">
+          <references value={[new PromptReference(value)]} />
 					{value.uri.fsPath}:{value.range.start.line + 1}-$<br />
 					{value.range.end.line + 1}: <br />
 					```<br />
