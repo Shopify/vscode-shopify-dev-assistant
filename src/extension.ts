@@ -279,7 +279,7 @@ export function activate(extensionContext: vscode.ExtensionContext) {
       const prompt = `@shopify I want to convert the following code wrapped in triple backticks to GraphQL:
 
 \`\`\`
-      ${selectedText}
+${selectedText}
 \`\`\``;
 
       await vscode.commands.executeCommand('workbench.action.chat.open', prompt);

@@ -51,6 +51,17 @@ suite('Integration Test Suite', () => {
   });
 
   test('Chat handler processes stream correctly', async () => {
+    sandbox.stub(vscode.lm, 'selectChatModels').resolves([{
+      id: 'test-model-id',
+      name: 'test-model',
+      vendor: 'test-vendor',
+      family: 'gpt-4o',
+      version: '1',
+      maxInputTokens: 4000,
+      sendRequest: async () => ({}) as any,
+      countTokens: async () => ({}) as any
+    }]);
+
     global.fetch = async () => {
       let firstCall = true;
       return {
@@ -83,7 +94,7 @@ suite('Integration Test Suite', () => {
       references: [],
       toolReferences: [],
       toolInvocationToken: '' as never,
-      model: { } as vscode.LanguageModelChat
+      model: {} as vscode.LanguageModelChat
     };
     const context = { history: [] };
     const stream: vscode.ChatResponseStream = {
