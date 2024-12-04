@@ -22,7 +22,12 @@ export function extractMarkdownUrls(fullText: string): Set<string> {
 
   function processTokens(tokens: TokensList) {
     tokens.forEach(token => {
-      if (token.type === 'link' && 'href' in token && token.href.startsWith('http')) {
+      if (
+        token.type === 'link' &&
+        'href' in token &&
+        token.href.startsWith('http') &&
+        token.raw.endsWith(')')
+      ) {
         urls.add(token.href);
       }
       if ('tokens' in token && Array.isArray(token.tokens)) {
@@ -98,7 +103,46 @@ export const handler: vscode.ChatRequestHandler = async (request: vscode.ChatReq
     }
   }
 
+  const processedUrls = new Set<string>();
   let fullText = '';
+
+  const parser = createParser({
+    onEvent: (event) => {
+      const eventType = event.event;
+      const data = JSON.parse(event.data);
+
+      switch (eventType) {
+        case 'start':
+          currentThreadId = data;
+          break;
+        case 'token':
+          const tokenText = data;
+          stream.markdown(tokenText);
+          fullText += tokenText;
+
+          // Extract URLs from the current fullText
+          const urls = extractMarkdownUrls(fullText);
+          for (const url of urls) {
+            if (!processedUrls.has(url)) {
+              // Stream reference after the link has been closed
+              stream.reference(vscode.Uri.parse(url));
+              processedUrls.add(url);
+            }
+          }
+          break;
+        case 'complete':
+          currentOperationId = data.gql_operation.id;
+          break;
+        case 'error':
+        case 'openai_error':
+          throw new Error(data);
+      }
+    },
+    onError: (error) => {
+      throw error;
+    }
+  });
+
   const streamId = crypto.randomUUID();
   const models = await vscode.lm.selectChatModels({ family: 'gpt-4o' });
   const model = models[0];
@@ -149,32 +193,6 @@ export const handler: vscode.ChatRequestHandler = async (request: vscode.ChatReq
   try {
     let result;
 
-    const parser = createParser({
-      onEvent: (event) => {
-        const eventType = event.event;
-        const data = JSON.parse(event.data);
-
-        switch (eventType) {
-          case 'start':
-            currentThreadId = data;
-            break;
-          case 'token':
-            stream.markdown(data);
-            fullText += data;
-            break;
-          case 'complete':
-            currentOperationId = data.gql_operation.id;
-            break;
-          case 'error':
-          case 'openai_error':
-            throw new Error(data);
-        }
-      },
-      onError: (error) => {
-        throw error;
-      }
-    });
-
     while ((result = await reader.read()) && !result.done) {
       const chunk = decoder.decode(result.value);
       parser.feed(chunk);
@@ -184,16 +202,6 @@ export const handler: vscode.ChatRequestHandler = async (request: vscode.ChatReq
     throw error;
   } finally {
     reader.cancel();
-  }
-
-  const processedUrls = new Set<string>();
-  const urls = extractMarkdownUrls(fullText);
-
-  for (const url of urls) {
-    if (!processedUrls.has(url)) {
-      stream.reference(vscode.Uri.parse(url));
-      processedUrls.add(url);
-    }
   }
 
   const codeBlocks = extractCodeBlocks(fullText);

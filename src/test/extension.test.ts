@@ -37,6 +37,13 @@ suite('Unit Test Suite', () => {
     assert.strictEqual(blocks.length, 1);
     assert.strictEqual(blocks[0].trim(), 'query { test }');
   });
+
+  test('extractMarkdownUrls ignores incomplete URLs during streaming', () => {
+    const testText = 'Streaming text with incomplete [link](https://shopify.dev/ap';
+    const urls = extractMarkdownUrls(testText);
+
+    assert.strictEqual(urls.size, 0, 'Should not include incomplete URLs');
+  });
 });
 
 suite('Integration Test Suite', () => {
