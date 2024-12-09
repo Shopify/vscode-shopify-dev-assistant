@@ -14,12 +14,6 @@ A VS Code extension that provides AI-powered assistance for developers building 
 - Automatically launches GraphiQL with your query when needed
 - Seamlessly integrates with your local development environment
 
-## Requirements
-
-- VS Code 1.95.0 or higher
-- Node.js and npm/pnpm installed
-- A running Shopify app development environment
-
 ## Installation
 
 1. Install the extension from the VS Code marketplace
@@ -32,9 +26,9 @@ A VS Code extension that provides AI-powered assistance for developers building 
 2. Type `@shopify` followed by your prompt
 3. For GraphQL queries, click the "Open in GraphiQL" button to test them in GraphiQL
 
-## Known Issues
+## GraphiQL Integration
 
-- GraphiQL integration requires a running Shopify app development server
+- GraphiQL integration requires a Shopify app created with the Shopify CLI
 - The extension will attempt to start the development server if it's not running
 
 ## License
