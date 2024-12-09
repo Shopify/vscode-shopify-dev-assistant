@@ -1,10 +1,15 @@
+name: Run VSCode Extension Tests
+
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  build:
+  test:
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
@@ -17,6 +22,7 @@ jobs:
       with:
         node-version: 18.x
     - run: npm install
+    - run: npm run compile
     - run: xvfb-run -a npm test
       if: runner.os == 'Linux'
     - run: npm test
