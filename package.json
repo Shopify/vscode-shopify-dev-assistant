@@ -2,7 +2,7 @@
   "name": "vscode-shopify-dev-assistant",
   "publisher": "Shopify",
   "displayName": "Shopify Dev Assistant",
-  "description": "An AI-powered assistant for developers building with GraphQL on Shopify’s platform.",
+  "description": "An AI assistant for developers building on the Shopify platform.",
   "version": "1.0.0",
   "repository": "https://github.com/Shopify/vscode-dev-assistant",
   "engines": {
@@ -28,7 +28,7 @@
             "description": "The user wants to do something with the Shopify developer platform.",
             "examples": [
               "How do I create a new Shopify app?",
-              "What are the latest changes in the Shopify Admin GraphQL API?",
+              "What are the latest changes in the Shopify GraphQL Admin API?",
               "How do I add a product to a Shopify store?",
               "How do I get the last 10 products from a Shopify store?"
             ]
