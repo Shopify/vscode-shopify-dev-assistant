@@ -1,35 +1,30 @@
 # Shopify Dev Assistant
 
-A VS Code extension that provides AI-powered assistance for developers building on the Shopify platform. This extension integrates directly with VS Code's chat interface to help you with Shopify development tasks and includes convenient features like direct GraphiQL integration.
+This extension provides Al-powered assistance for developers building with GraphQL on the Shopify platform. This extension integrates directly with VS Code's chat interface to help you with Shopify development tasks, generate GraphQL Admin API operations, and launch our GraphiQL integration.
 
 ## Features
 
 ### 🤖 AI Assistant
 - Access Shopify-specific AI assistance directly within VS Code
 - Get help with Shopify API queries, app development, and platform-specific questions
-- Context-aware responses tailored to Shopify development
+- Receive context-aware responses tailored to Shopify development
 
 ### 🔍 GraphiQL Integration
-- Execute GraphQL queries directly from chat responses
-- Automatically launches GraphiQL with your query when needed
-- Seamlessly integrates with your local development environment
+- Executes GraphQL queries directly from chat responses
+- Launches GraphiQL automatically when needed
+- Integrates seamlessly with your local development environment
+- Requires a Shopify app created with the Shopify CLI
 
 ## Installation
 
-1. Install the extension from the VS Code marketplace
-2. Ensure you have the Shopify CLI installed and configured
-3. Start using the assistant by opening VS Code's chat panel and typing `@shopify`
+1. Install the extension from the [VS Code marketplace](https://marketplace.visualstudio.com/items?itemName=Shopify.vscode-shopify-dev-assistant).
+2. (Optional)Ensure that you have Shopify CLI [installed and configured](https://shopify.dev/docs/api/shopify-cli).
 
 ## Usage
 
-1. Open VS Code's chat panel (Ctrl/Cmd + Shift + P > "Open Chat")
-2. Type `@shopify` followed by your prompt
-3. For GraphQL queries, click the "Open in GraphiQL" button to test them in GraphiQL
-
-## GraphiQL Integration
-
-- GraphiQL integration requires a Shopify app created with the Shopify CLI
-- The extension will attempt to start the development server if it's not running
+1. Open VS Code's chat panel (Ctrl/Cmd + Shift + P > "Open Chat").
+2. Type `@shopify`, followed by your prompt.
+3. (Optional) Click the Open in GraphiQL button to test your queries.
 
 ## License
 
