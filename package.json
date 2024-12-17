@@ -57,7 +57,7 @@
     }
   },
   "scripts": {
-    "test": "vscode-test",
+    "test": "npm run compile && vscode-test",
     "deploy": "vsce publish",
     "vscode:prepublish": "npm run compile",
 		"compile": "tsc -p ./",

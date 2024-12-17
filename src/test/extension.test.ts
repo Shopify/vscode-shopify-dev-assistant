@@ -82,7 +82,7 @@ suite('Integration Test Suite', () => {
                   done: false,
                   value: new TextEncoder().encode(
                     'event: start\ndata: "test-thread-id"\n\n' +
-                    'event: token\ndata: "Hello world"\n\n' +
+                    'event: token\ndata: "Hello [world](https://example.com)"\n\n' +
                     'event: complete\ndata: {"gql_operation":{"id":"test-op-id"}}\n\n'
                   )
                 };
@@ -104,15 +104,28 @@ suite('Integration Test Suite', () => {
       model: {} as vscode.LanguageModelChat
     };
     const context = { history: [] };
-    const stream: vscode.ChatResponseStream = {
-      markdown: (text: string) => {},
-      reference: (uri: vscode.Uri) => {},
-      button: (options: any) => {},
-      anchor: (value: vscode.Uri | vscode.Location, title?: string) => {},
-      filetree: (options: any) => {},
-      progress: (options: any) => {},
-      push: (options: any) => {}
+
+    // Define the interface for the stubbed stream
+    interface StubbedChatResponseStream extends vscode.ChatResponseStream {
+      markdown: sinon.SinonStub;
+      reference: sinon.SinonStub;
+      button: sinon.SinonStub;
+      anchor: sinon.SinonStub;
+      filetree: sinon.SinonStub;
+      progress: sinon.SinonStub;
+      push: sinon.SinonStub;
+    }
+
+    const stream: StubbedChatResponseStream = {
+      markdown: sandbox.stub(),
+      reference: sandbox.stub(),
+      button: sandbox.stub(),
+      anchor: sandbox.stub(),
+      filetree: sandbox.stub(),
+      progress: sandbox.stub(),
+      push: sandbox.stub(),
     };
+
     const token = new vscode.CancellationTokenSource().token;
 
     const result = await handler(request, context, stream, token);
@@ -121,6 +134,12 @@ suite('Integration Test Suite', () => {
     assert.ok(result?.metadata?.operationId);
     assert.strictEqual(result.metadata.threadId, 'test-thread-id');
     assert.strictEqual(result.metadata.operationId, 'test-op-id');
+
+    // Assert that stream.markdown was called with the markdown text
+    assert.ok(stream.markdown.calledWith('Hello [world](https://example.com)'));
+
+    // Assert that stream.reference was called with the correct URI
+    assert.ok(stream.reference.calledWith(vscode.Uri.parse('https://example.com')));
   });
 
   test('open-in-graphiql opens the correct URLs', async () => {
