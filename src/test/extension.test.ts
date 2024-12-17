@@ -181,7 +181,7 @@ suite('Integration Test Suite', () => {
     assert.ok(
       executeCommandStub.calledWith(
         'workbench.action.chat.open',
-        `@shopify I want to convert the following code wrapped in triple backticks to GraphQL:\n\n\`\`\`\nconst x = 42;\n\`\`\``
+        `@shopify I want to convert the following code to GraphQL:\n\n\`\`\`\nconst x = 42;\n\`\`\``
       )
     );
 

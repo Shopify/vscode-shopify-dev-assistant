@@ -292,7 +292,7 @@ export function activate(extensionContext: vscode.ExtensionContext) {
         return;
       }
 
-      const prompt = `@shopify I want to convert the following code wrapped in triple backticks to GraphQL:
+      const prompt = `@shopify I want to convert the following code to GraphQL:
 
 \`\`\`
 ${selectedText}
