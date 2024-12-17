@@ -30,6 +30,8 @@ This extension provides Al-powered assistance for developers building with Graph
 2. Type `@shopify`, followed by your prompt.
 3. (Optional) Click the **Open in GraphiQL** button to test your queries.
 
+You can also select some REST code in your editor, right click, and select **Convert to GraphQL** to get some help converting it to GraphQL.
+
 ## License
 
 [MIT License](LICENSE)
