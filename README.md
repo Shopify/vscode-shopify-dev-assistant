@@ -5,11 +5,13 @@ This extension provides Al-powered assistance for developers building with Graph
 ## Features
 
 ### 🤖 AI Assistant
+
 - Access Shopify-specific AI assistance directly within VS Code
 - Get help with Shopify API queries, app development, and platform-specific questions
 - Receive context-aware responses tailored to Shopify development
 
 ### 🔍 GraphiQL integration
+
 - Executes GraphQL queries directly from chat responses
 - Launches GraphiQL automatically when needed
 - Integrates seamlessly with your local development environment
@@ -31,6 +33,13 @@ This extension provides Al-powered assistance for developers building with Graph
 3. (Optional) Click the **Open in GraphiQL** button to test your queries.
 
 You can also select some REST code in your editor, right click, and select **Convert to GraphQL** to get some help converting it to GraphQL.
+
+## Development
+
+1. Run `npm run package` to compile the source into a bundled extension
+2. In VScode, choose the extensions tab, click on the three dots, and
+   choose install from VSIX
+3. Choose the bundled extension and reload all extensions
 
 ## License
 

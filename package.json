@@ -3,7 +3,7 @@
   "publisher": "Shopify",
   "displayName": "Shopify Dev Assistant",
   "description": "An AI assistant for developers building on the Shopify platform.",
-  "version": "1.0.0",
+  "version": "0.0.6",
   "repository": "https://github.com/Shopify/vscode-dev-assistant",
   "engines": {
     "vscode": "^1.95.0"
@@ -60,9 +60,10 @@
     "test": "npm run compile && vscode-test",
     "deploy": "vsce publish",
     "vscode:prepublish": "npm run compile",
-		"compile": "tsc -p ./",
-		"lint": "eslint",
-		"watch": "tsc -watch -p ./"
+    "compile": "tsc -p ./",
+    "lint": "eslint",
+    "watch": "tsc -watch -p ./",
+    "package": "npm exec vsce package -- --pre-release"
   },
   "devDependencies": {
     "@types/marked": "^6.0.0",
