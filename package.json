@@ -78,11 +78,12 @@
     "eslint": "^9.13.0",
     "sinon": "^19.0.2",
     "ts-loader": "^9.5.1",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vsce": "^2.15.0"
   },
   "dependencies": {
+    "@vscode/prompt-tsx": "^0.3.0-alpha.13",
     "eventsource-parser": "^3.0.0",
-    "marked": "^15.0.3",
-    "@vscode/prompt-tsx": "^0.3.0-alpha.13"
+    "marked": "^15.0.3"
   }
 }

@@ -1,0 +1,5 @@
+name: vscode-shopify-dev-assistant
+
+up:
+  - node:
+      version: v22.13.0
