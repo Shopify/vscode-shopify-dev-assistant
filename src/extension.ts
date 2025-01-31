@@ -40,15 +40,42 @@ export function extractMarkdownUrls(fullText: string): Set<string> {
   return urls;
 }
 
-export function extractCodeBlocks(fullText: string): string[] {
-  const codeBlocks: string[] = [];
+// export function extractCodeBlocks(fullText: string): string[] {
+//   const codeBlocks: string[] = [];
+//   const tokens = marked.lexer(fullText);
+//   tokens.forEach(token => {
+//     if (token.type === 'code' && token.lang === 'graphql') {
+//       codeBlocks.push(token.text.trim());
+//     }
+//   });
+//   return codeBlocks;
+// }
+
+interface GraphQLBlock {
+  query: string;
+  variables?: string;
+}
+
+export function extractCodeBlocks(fullText: string): GraphQLBlock[] {
+  const blocks: GraphQLBlock[] = [];
   const tokens = marked.lexer(fullText);
+  let currentQuery: string | null = null;
+
   tokens.forEach(token => {
-    if (token.type === 'code' && token.lang === 'graphql') {
-      codeBlocks.push(token.text.trim());
+    if (token.type === 'code') {
+      if (token.lang === 'graphql') {
+        currentQuery = token.text.trim();
+      } else if (token.lang === 'json' && currentQuery) {
+        blocks.push({
+          query: currentQuery,
+          variables: token.text.trim()
+        });
+        currentQuery = null;
+      }
     }
   });
-  return codeBlocks;
+
+  return blocks;
 }
 
 async function isShopifyApp(): Promise<boolean> {
@@ -232,11 +259,26 @@ const isGraphiQLReachable = async () => {
   }
 };
 
-const openGraphiQLURLs = (codeBlocks: string[]) => {
+// const openGraphiQLURLs = (codeBlocks: string[]) => {
+//   const baseUrl = 'http://localhost:3457/graphiql';
+//   for (const block of codeBlocks) {
+//     const encodedQuery = encodeURIComponent(block).replace(/%20/g, '+');
+//     const url = `${baseUrl}?query=${encodedQuery}`;
+//     vscode.env.openExternal(vscode.Uri.parse(url));
+//   }
+// };
+
+const openGraphiQLURLs = (codeBlocks: GraphQLBlock[]) => {
   const baseUrl = 'http://localhost:3457/graphiql';
   for (const block of codeBlocks) {
-    const encodedQuery = encodeURIComponent(block).replace(/%20/g, '+');
-    const url = `${baseUrl}?query=${encodedQuery}`;
+    const encodedQuery = encodeURIComponent(block.query).replace(/%20/g, '+');
+    let url = `${baseUrl}?query=${encodedQuery}`;
+    
+    if (block.variables) {
+      const encodedVariables = encodeURIComponent(block.variables).replace(/%20/g, '+');
+      url += `&variables=${encodedVariables}`;
+    }
+    
     vscode.env.openExternal(vscode.Uri.parse(url));
   }
 };

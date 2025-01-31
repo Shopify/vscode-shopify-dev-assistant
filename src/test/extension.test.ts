@@ -26,8 +26,8 @@ suite('Unit Test Suite', () => {
     const blocks = extractCodeBlocks(testText);
 
     assert.strictEqual(blocks.length, 2);
-    assert.strictEqual(blocks[0].trim(), 'query { test }');
-    assert.strictEqual(blocks[1].trim(), 'mutation { update }');
+    assert.strictEqual(blocks[0].query.trim(), 'query { test }');
+    assert.strictEqual(blocks[1].query.trim(), 'mutation { update }');
   });
 
   test('extractCodeBlocks ignores non-GraphQL blocks', () => {
@@ -35,7 +35,7 @@ suite('Unit Test Suite', () => {
     const blocks = extractCodeBlocks(testText);
 
     assert.strictEqual(blocks.length, 1);
-    assert.strictEqual(blocks[0].trim(), 'query { test }');
+    assert.strictEqual(blocks[0].query.trim(), 'query { test }');
   });
 
   test('extractMarkdownUrls ignores incomplete URLs during streaming', () => {
@@ -43,6 +43,15 @@ suite('Unit Test Suite', () => {
     const urls = extractMarkdownUrls(testText);
 
     assert.strictEqual(urls.size, 0, 'Should not include incomplete URLs');
+  });
+
+  test('extractCodeBlocks handles GraphQL queries with variables', () => {
+    const testText = '```graphql\nquery { test }\n```\n```json\n{"var": "value"}\n```';
+    const blocks = extractCodeBlocks(testText);
+
+    assert.strictEqual(blocks.length, 1);
+    assert.strictEqual(blocks[0].query.trim(), 'query { test }');
+    assert.strictEqual(blocks[0].variables?.trim(), '{"var": "value"}');
   });
 });
 
@@ -143,7 +152,10 @@ suite('Integration Test Suite', () => {
   });
 
   test('open-in-graphiql opens the correct URLs', async () => {
-    const codeBlocks = ['query { test }', 'mutation { update }'];
+    const codeBlocks = [
+      { query: 'query { test }' },
+      { query: 'mutation { update }' }
+    ];
 
     global.fetch = (async (input: Request | URL, init?: RequestInit) => {
       return {
@@ -157,7 +169,7 @@ suite('Integration Test Suite', () => {
 
     assert.strictEqual(openExternalStub.callCount, codeBlocks.length);
     for (let i = 0; i < codeBlocks.length; i++) {
-      const encodedQuery = encodeURIComponent(codeBlocks[i]).replace(/%20/g, '+');
+      const encodedQuery = encodeURIComponent(codeBlocks[i].query).replace(/%20/g, '+');
       const expectedUrl = `http://localhost:3457/graphiql?query=${encodedQuery}`;
       assert.ok(openExternalStub.getCall(i).calledWith(vscode.Uri.parse(expectedUrl)));
     }
@@ -213,7 +225,7 @@ suite('Integration Test Suite', () => {
   test('open-in-graphiql runs dev server when GraphiQL is not reachable', async function() {
     const clock = sandbox.useFakeTimers();
 
-    const codeBlocks = ['query { test }'];
+    const codeBlocks = [{ query: 'query { test }' }];
 
     let fetchCallCount = 0;
 
