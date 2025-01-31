@@ -40,17 +40,6 @@ export function extractMarkdownUrls(fullText: string): Set<string> {
   return urls;
 }
 
-// export function extractCodeBlocks(fullText: string): string[] {
-//   const codeBlocks: string[] = [];
-//   const tokens = marked.lexer(fullText);
-//   tokens.forEach(token => {
-//     if (token.type === 'code' && token.lang === 'graphql') {
-//       codeBlocks.push(token.text.trim());
-//     }
-//   });
-//   return codeBlocks;
-// }
-
 interface GraphQLBlock {
   query: string;
   variables?: string;
@@ -258,15 +247,6 @@ const isGraphiQLReachable = async () => {
     return false;
   }
 };
-
-// const openGraphiQLURLs = (codeBlocks: string[]) => {
-//   const baseUrl = 'http://localhost:3457/graphiql';
-//   for (const block of codeBlocks) {
-//     const encodedQuery = encodeURIComponent(block).replace(/%20/g, '+');
-//     const url = `${baseUrl}?query=${encodedQuery}`;
-//     vscode.env.openExternal(vscode.Uri.parse(url));
-//   }
-// };
 
 const openGraphiQLURLs = (codeBlocks: GraphQLBlock[]) => {
   const baseUrl = 'http://localhost:3457/graphiql';
