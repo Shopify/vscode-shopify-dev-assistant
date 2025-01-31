@@ -46,7 +46,7 @@ suite('Unit Test Suite', () => {
   });
 
   test('extractCodeBlocks handles GraphQL queries with variables', () => {
-    const testText = '```graphql\nquery { test }\n```\n```json\n{"var": "value"}\n```';
+    const testText = '```graphql\nquery { test }\n```\nSome text\n```json\n{"var": "value"}\n```';
     const blocks = extractCodeBlocks(testText);
 
     assert.strictEqual(blocks.length, 1);

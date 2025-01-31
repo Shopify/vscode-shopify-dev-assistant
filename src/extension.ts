@@ -53,6 +53,9 @@ export function extractCodeBlocks(fullText: string): GraphQLBlock[] {
   tokens.forEach(token => {
     if (token.type === 'code') {
       if (token.lang === 'graphql') {
+        if (currentQuery) {
+          blocks.push({ query: currentQuery });
+        }
         currentQuery = token.text.trim();
       } else if (token.lang === 'json' && currentQuery) {
         blocks.push({
@@ -63,6 +66,11 @@ export function extractCodeBlocks(fullText: string): GraphQLBlock[] {
       }
     }
   });
+
+  if (currentQuery) {
+    blocks.push({ query: currentQuery });
+    currentQuery = null;
+  }
 
   return blocks;
 }
